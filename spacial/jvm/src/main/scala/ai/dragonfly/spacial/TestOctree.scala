@@ -42,10 +42,16 @@ object TestOctree extends App {
   ) match {
     case Some(hm) =>
       println(hm)
-      for ((v, i) <- hm) {
-        println(s"$v ${queryVector.distanceTo(v)} ${queryVector.distanceSquaredTo(v)}")
+      for (v <- hm) {
+        println(s"$v ${queryVector.distanceTo(v._1)} ${queryVector.distanceSquaredTo(v._1)} -> ${v._2}")
       }
     case None => println("No matches.")
+  }
+
+
+  println("Test Iterator:")
+  for ((v: Vector3, i: Int) <- ot.iterator) {
+    println(s"$v -> $i")
   }
 
 }

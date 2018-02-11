@@ -2,7 +2,7 @@ package ai.dragonfly.spacial
 
 import ai.dragonfly.math.vector.Vector3
 
-import scala.collection.mutable
+import scala.collection.{Iterator, mutable}
 
 trait PointRegionOctreeNode[T] {
   def center: Vector3
@@ -39,23 +39,56 @@ trait PointRegionOctreeNode[T] {
     distSquared > 0
   }
 
-  def insert(p: Vector3, value: T): PointRegionOctreeNode[T]
+  def insert(p: Vector3): PointRegionOctreeNode[T]
 
-  def radialQuery(p: Vector3, radiusSquared: Double): Option[mutable.MutableList[(Vector3, T)]]
+  def radialQuery(p: Vector3, radiusSquared: Double): Option[mutable.MutableList[Vector3]]
 }
 
 // Discritized Lab Space Cardinality: 857623
-// Is this a map or a set?
+// Weights?
+// removal?
 
-class PointRegionOctree[T](width: Double, center:Vector3 = Vector3(0.0, 0.0, 0.0), nodeCapacity:Int = 10, maxDepth:Int =  10) {
+class PointRegionOctree[T](width: Double, center:Vector3 = Vector3(0.0, 0.0, 0.0), nodeCapacity:Int = 10, maxDepth:Int =  10) extends Iterable[(Vector3, T)] {
+
+  val map: mutable.HashMap[Vector3, List[T]] = new mutable.HashMap[Vector3, List[T]]()
 
   private var root: PointRegionOctreeNode[T] = new PROctreeMapLeafNode[T](width, center, nodeCapacity, maxDepth)
 
-  def insert(p: Vector3, value: T): Unit = synchronized { root = root.insert(p, value) }
+  def insert(p: Vector3, value: T): Unit = synchronized {
+    root = root.insert(p)
+    map.get(p) match {
+      case Some(l: List[T]) => map.put(p, value :: l)
+      case _ => map.put(p, List[T](value))
+    }
+  }
 
-  def radialQuery(p: Vector3, radius: Double): Option[mutable.MutableList[(Vector3, T)]] = root.radialQuery(p, radius * radius)
+  def radialQuery(p: Vector3, radius: Double): Option[mutable.MutableList[(Vector3, T)]] = {
 
-  def size: Int = root.size
+    var matched = false
+    lazy val matches = { matched = true; mutable.MutableList[(Vector3, T)]() }
+
+    root.radialQuery(p, radius * radius) match {
+      case Some(keys) =>
+        for (k <- keys) {
+          map.get(k) match {
+            case Some(l: List[T]) =>
+              for (value <- l) {
+                matches += ((k, value))
+              }
+            case None =>
+          }
+        }
+      case None =>
+    }
+
+
+    if (matched) Some(matches) else None
+
+  }
+
+  override def size: Int = root.size
+
+  override def iterator: Iterator[(Vector3, T)] = new PointRegionOctreeIterator[T](map)
 }
 
 class PROctreeMapMetaNode[T](override val width: Double, override val center:Vector3 = Vector3(0.0, 0.0, 0.0), nodeCapacity:Int = 10, maxDepth:Int =  10) extends PointRegionOctreeNode[T] {
@@ -87,26 +120,25 @@ class PROctreeMapMetaNode[T](override val width: Double, override val center:Vec
     )
   )
 
-  override def insert(p: Vector3, value: T): PointRegionOctreeNode[T] = {
+  override def insert(p: Vector3): PointRegionOctreeNode[T] = {
     val x = if (p.x - center.x < 0.0) 0 else 1
     val y = if (p.y - center.y < 0.0) 0 else 1
     val z = if (p.z - center.z < 0.0) 0 else 1
 
-    val insertedNode = nodes(x)(y)(z).insert(p, value)
+    val insertedNode = nodes(x)(y)(z).insert(p)
     nodes(x)(y)(z) = insertedNode
     size = size + 1
     insertedNode
   }
 
-
-  override def radialQuery(p: Vector3, radiusSquared: Double): Option[mutable.MutableList[(Vector3, T)]] = {
+  override def radialQuery(p: Vector3, radiusSquared: Double): Option[mutable.MutableList[Vector3]] = {
     var matched = false
-    lazy val matches = { matched = true; mutable.MutableList[(Vector3, T)]() }
+    lazy val matches = { matched = true; mutable.MutableList[Vector3]() }
 
     for ( x <- 0 until 2; y <- 0 until 2; z <- 0 until 2 ) {
       if (nodes(x)(y)(z).intersects(p, radiusSquared)) {
         nodes(x)(y)(z).radialQuery(p, radiusSquared) match {
-          case Some(ms: mutable.MutableList[(Vector3, T)]) => matches ++= ms
+          case Some(ms: mutable.MutableList[Vector3]) => matches ++= ms
           case _ =>
         }
       }
@@ -117,15 +149,15 @@ class PROctreeMapMetaNode[T](override val width: Double, override val center:Vec
 }
 
 class PROctreeMapLeafNode[T](override val width: Double, override val center:Vector3 = Vector3(0.0, 0.0, 0.0), nodeCapacity:Int = 10, maxDepth:Int =  10) extends PointRegionOctreeNode[T] {
-  val pointValues: Array[(Vector3, T)] = new Array[(Vector3, T)](nodeCapacity)
+  val points: Array[Vector3] = new Array[Vector3](nodeCapacity)
   override var size: Int = 0
 
-  def insert(p: Vector3, value: T): PointRegionOctreeNode[T] = {
-    if (size < pointValues.length ) {
-      pointValues(size) = (p, value)
+  def insert(p: Vector3): PointRegionOctreeNode[T] = {
+    if (size < points.length ) {
+      points(size) = p
       size = size + 1
       this
-    } else split().insert(p, value)
+    } else split().insert(p)
   }
 
   def split(): PointRegionOctreeNode[T] = {
@@ -135,18 +167,18 @@ class PROctreeMapLeafNode[T](override val width: Double, override val center:Vec
       else new PROctreeMapMetaNode[T](width, center, nodeCapacity, maxDepth - 1)
     }
 
-    for (pv <- pointValues) {
-      replacementNode.insert(pv._1, pv._2)
+    for (p <- points) {
+      replacementNode.insert(p)
     }
     replacementNode
   }
 
-  override def radialQuery(p: Vector3, radiusSquared: Double): Option[mutable.MutableList[(Vector3, T)]] = {
+  override def radialQuery(p: Vector3, radiusSquared: Double): Option[mutable.MutableList[Vector3]] = {
     var matched = false
-    lazy val matches = { matched = true; new mutable.MutableList[(Vector3, T)]() }
+    lazy val matches = { matched = true; new mutable.MutableList[Vector3]() }
 
-    for (pv <- pointValues) {
-      if (pv._1.distanceSquaredTo(p) <= radiusSquared) matches += pv
+    for (pC <- points) {
+      if (pC.distanceSquaredTo(p) <= radiusSquared) matches += pC
     }
 
     if (matched) Some(matches) else None
@@ -154,23 +186,47 @@ class PROctreeMapLeafNode[T](override val width: Double, override val center:Vec
 }
 
 class PROctreeMapMaxDepthNode[T](override val width: Double, override val center:Vector3 = Vector3(0.0, 0.0, 0.0)) extends PointRegionOctreeNode[T] {
-  val pointValues: mutable.MutableList[(Vector3, T)] = mutable.MutableList[(Vector3, T)]()
+  val points: mutable.MutableList[Vector3] = mutable.MutableList[Vector3]()
   override var size: Int = 0
 
-  def insert(p: Vector3, value: T): PointRegionOctreeNode[T] = {
-    pointValues += ((p, value))
+  def insert(p: Vector3): PointRegionOctreeNode[T] = {
+    points += p
     size = size + 1
     this
   }
 
-  override def radialQuery(p: Vector3, radiusSquared: Double): Option[mutable.MutableList[(Vector3, T)]] = {
+  override def radialQuery(p: Vector3, radiusSquared: Double): Option[mutable.MutableList[Vector3]] = {
     var matched = false
-    lazy val matches = { matched = true; mutable.MutableList[(Vector3, T)]() }
+    lazy val matches = { matched = true; mutable.MutableList[Vector3]() }
 
-    for (pv <- pointValues) {
-      if (pv._1.distanceSquaredTo(p) <= radiusSquared) matches += pv
+    for (pC <- points) {
+      if (pC.distanceSquaredTo(p) <= radiusSquared) matches += pC
     }
 
     if (matched) Some(matches) else None
+  }
+}
+
+class PointRegionOctreeIterator[T](map: mutable.HashMap[Vector3, List[T]]) extends Iterator[(Vector3, T)] {
+
+  private val itr:Iterator[(Vector3, List[T])] = map.iterator
+
+  private var queue: List[(Vector3, T)] = List[(Vector3, T)]()
+
+  override def hasNext: Boolean = queue.nonEmpty || itr.hasNext
+
+  override def next(): (Vector3, T) = {
+
+    if (queue.isEmpty && itr.hasNext) {
+      val (v3: Vector3, vT: List[T]) = itr.next
+      for (t <- vT) queue = queue :+ (v3, t)
+    }
+
+    queue.headOption match {
+      case Some( nxt:(Vector3, T) ) =>
+        queue = queue.tail
+        nxt
+      case None => null
+    }
   }
 }
