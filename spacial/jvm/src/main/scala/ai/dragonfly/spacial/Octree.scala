@@ -68,9 +68,7 @@ class PointRegionOctree[T](width: Double, center:Vector3 = Vector3(0.0, 0.0, 0.0
     for (k <- root.radialQuery(p, radius * radius)) {
       map.get(k) match {
         case Some(l: List[T]) =>
-          for (value <- l) {
-            matches += ((k, value))
-          }
+          for (value <- l) matches += ((k, value))
         case None =>
       }
     }
