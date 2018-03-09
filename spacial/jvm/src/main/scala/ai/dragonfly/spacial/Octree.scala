@@ -41,7 +41,7 @@ trait PointRegionOctreeNode[T] {
 
   def insert(p: Vector3): PointRegionOctreeNode[T]
 
-  def radialQuery(p: Vector3, radiusSquared: Double): Option[mutable.MutableList[Vector3]]
+  def radialQuery(p: Vector3, radiusSquared: Double): mutable.MutableList[Vector3]
 }
 
 // Discritized Lab Space Cardinality: 857623
@@ -62,28 +62,20 @@ class PointRegionOctree[T](width: Double, center:Vector3 = Vector3(0.0, 0.0, 0.0
     }
   }
 
-  def radialQuery(p: Vector3, radius: Double): Option[mutable.MutableList[(Vector3, T)]] = {
+  def radialQuery(p: Vector3, radius: Double): mutable.MutableList[(Vector3, T)] = {
+    val matches = mutable.MutableList[(Vector3, T)]()
 
-    var matched = false
-    lazy val matches = { matched = true; mutable.MutableList[(Vector3, T)]() }
-
-    root.radialQuery(p, radius * radius) match {
-      case Some(keys) =>
-        for (k <- keys) {
-          map.get(k) match {
-            case Some(l: List[T]) =>
-              for (value <- l) {
-                matches += ((k, value))
-              }
-            case None =>
+    for (k <- root.radialQuery(p, radius * radius)) {
+      map.get(k) match {
+        case Some(l: List[T]) =>
+          for (value <- l) {
+            matches += ((k, value))
           }
-        }
-      case None =>
+        case None =>
+      }
     }
 
-
-    if (matched) Some(matches) else None
-
+    matches
   }
 
   override def size: Int = root.size
@@ -131,20 +123,17 @@ class PROctreeMapMetaNode[T](override val width: Double, override val center:Vec
     insertedNode
   }
 
-  override def radialQuery(p: Vector3, radiusSquared: Double): Option[mutable.MutableList[Vector3]] = {
-    var matched = false
-    lazy val matches = { matched = true; mutable.MutableList[Vector3]() }
+  override def radialQuery(p: Vector3, radiusSquared: Double): mutable.MutableList[Vector3] = {
+
+    val matches = mutable.MutableList[Vector3]()
 
     for ( x <- 0 until 2; y <- 0 until 2; z <- 0 until 2 ) {
       if (nodes(x)(y)(z).intersects(p, radiusSquared)) {
-        nodes(x)(y)(z).radialQuery(p, radiusSquared) match {
-          case Some(ms: mutable.MutableList[Vector3]) => matches ++= ms
-          case _ =>
-        }
+        matches ++= nodes(x)(y)(z).radialQuery(p, radiusSquared)
       }
     }
 
-    if (matched) Some(matches) else None
+    matches
   }
 }
 
@@ -173,15 +162,14 @@ class PROctreeMapLeafNode[T](override val width: Double, override val center:Vec
     replacementNode
   }
 
-  override def radialQuery(p: Vector3, radiusSquared: Double): Option[mutable.MutableList[Vector3]] = {
-    var matched = false
-    lazy val matches = { matched = true; new mutable.MutableList[Vector3]() }
+  override def radialQuery(p: Vector3, radiusSquared: Double): mutable.MutableList[Vector3] = {
+    val matches = new mutable.MutableList[Vector3]()
 
     for (pC <- points) {
       if (pC.distanceSquaredTo(p) <= radiusSquared) matches += pC
     }
 
-    if (matched) Some(matches) else None
+    matches
   }
 }
 
@@ -195,15 +183,14 @@ class PROctreeMapMaxDepthNode[T](override val width: Double, override val center
     this
   }
 
-  override def radialQuery(p: Vector3, radiusSquared: Double): Option[mutable.MutableList[Vector3]] = {
-    var matched = false
-    lazy val matches = { matched = true; mutable.MutableList[Vector3]() }
+  override def radialQuery(p: Vector3, radiusSquared: Double): mutable.MutableList[Vector3] = {
+    var matches = mutable.MutableList[Vector3]()
 
     for (pC <- points) {
       if (pC.distanceSquaredTo(p) <= radiusSquared) matches += pC
     }
 
-    if (matched) Some(matches) else None
+    matches
   }
 }
 

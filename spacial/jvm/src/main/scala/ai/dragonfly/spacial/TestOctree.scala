@@ -36,18 +36,9 @@ object TestOctree extends App {
 
   println(s"Query Vector: $queryVector  Radius: $radius  RadiusSquared: $radiusSquared")
 
-  ot.radialQuery(
-    queryVector,
-    radius
-  ) match {
-    case Some(hm) =>
-      println(hm)
-      for (v <- hm) {
-        println(s"$v ${queryVector.distanceTo(v._1)} ${queryVector.distanceSquaredTo(v._1)} -> ${v._2}")
-      }
-    case None => println("No matches.")
+  for (v <- ot.radialQuery(queryVector, radius)) {
+    println(s"$v ${queryVector.distanceTo(v._1)} ${queryVector.distanceSquaredTo(v._1)} -> ${v._2}")
   }
-
 
   println("Test Iterator:")
   for ((v: Vector3, i: Int) <- ot.iterator) {
