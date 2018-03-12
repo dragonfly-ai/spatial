@@ -50,16 +50,13 @@ trait PointRegionOctreeNode[T] {
 
 class PointRegionOctree[T](width: Double, center:Vector3 = Vector3(0.0, 0.0, 0.0), nodeCapacity:Int = 10, maxDepth:Int =  10) extends Iterable[(Vector3, T)] {
 
-  val map: mutable.HashMap[Vector3, List[T]] = new mutable.HashMap[Vector3, List[T]]()
+  val map: mutable.HashMap[Vector3, T] = new mutable.HashMap[Vector3, T]()
 
   private var root: PointRegionOctreeNode[T] = new PROctreeMapLeafNode[T](width, center, nodeCapacity, maxDepth)
 
   def insert(p: Vector3, value: T): Unit = synchronized {
     root = root.insert(p)
-    map.get(p) match {
-      case Some(l: List[T]) => map.put(p, value :: l)
-      case _ => map.put(p, List[T](value))
-    }
+    map.put(p, value)
   }
 
   def radialQuery(p: Vector3, radius: Double): mutable.MutableList[(Vector3, T)] = {
@@ -67,8 +64,7 @@ class PointRegionOctree[T](width: Double, center:Vector3 = Vector3(0.0, 0.0, 0.0
 
     for (k <- root.radialQuery(p, radius * radius)) {
       map.get(k) match {
-        case Some(l: List[T]) =>
-          for (value <- l) matches += ((k, value))
+        case Some(value: T) => matches += ((k, value))
         case None =>
       }
     }
@@ -78,7 +74,7 @@ class PointRegionOctree[T](width: Double, center:Vector3 = Vector3(0.0, 0.0, 0.0
 
   override def size: Int = root.size
 
-  override def iterator: Iterator[(Vector3, T)] = new PointRegionOctreeIterator[T](map)
+  override def iterator: Iterator[(Vector3, T)] = map.iterator
 }
 
 class PROctreeMapMetaNode[T](override val width: Double, override val center:Vector3 = Vector3(0.0, 0.0, 0.0), nodeCapacity:Int = 10, maxDepth:Int =  10) extends PointRegionOctreeNode[T] {
@@ -189,29 +185,5 @@ class PROctreeMapMaxDepthNode[T](override val width: Double, override val center
     }
 
     matches
-  }
-}
-
-class PointRegionOctreeIterator[T](map: mutable.HashMap[Vector3, List[T]]) extends Iterator[(Vector3, T)] {
-
-  private val itr:Iterator[(Vector3, List[T])] = map.iterator
-
-  private var queue: List[(Vector3, T)] = List[(Vector3, T)]()
-
-  override def hasNext: Boolean = queue.nonEmpty || itr.hasNext
-
-  override def next(): (Vector3, T) = {
-
-    if (queue.isEmpty && itr.hasNext) {
-      val (v3: Vector3, vT: List[T]) = itr.next
-      for (t <- vT) queue = queue :+ (v3, t)
-    }
-
-    queue.headOption match {
-      case Some( nxt:(Vector3, T) ) =>
-        queue = queue.tail
-        nxt
-      case None => null
-    }
   }
 }
