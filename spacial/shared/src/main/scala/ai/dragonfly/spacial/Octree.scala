@@ -49,7 +49,7 @@ trait PointRegionOctreeNode[T] {
 // Weights?
 // removal?
 
-@JSExportTopLevel("ai.dragonfly.PointRegionOctree")
+@JSExportTopLevel("ai.dragonfly.spacial.PointRegionOctree")
 class PointRegionOctree[T](width: Double, center:Vector3 = Vector3(0.0, 0.0, 0.0), nodeCapacity:Int = 10, maxDepth:Int =  10) extends Iterable[(Vector3, T)] {
 
   @JSExport val map: mutable.HashMap[Vector3, T] = new mutable.HashMap[Vector3, T]()
