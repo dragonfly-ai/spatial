@@ -3,6 +3,7 @@ package ai.dragonfly.spacial
 import ai.dragonfly.math.vector.Vector3
 
 import scala.collection.{Iterator, mutable}
+import scala.scalajs.js.annotation.{JSExport, JSExportTopLevel}
 
 trait PointRegionOctreeNode[T] {
   def center: Vector3
@@ -48,18 +49,19 @@ trait PointRegionOctreeNode[T] {
 // Weights?
 // removal?
 
+@JSExportTopLevel("ai.dragonfly.PointRegionOctree")
 class PointRegionOctree[T](width: Double, center:Vector3 = Vector3(0.0, 0.0, 0.0), nodeCapacity:Int = 10, maxDepth:Int =  10) extends Iterable[(Vector3, T)] {
 
-  val map: mutable.HashMap[Vector3, T] = new mutable.HashMap[Vector3, T]()
+  @JSExport val map: mutable.HashMap[Vector3, T] = new mutable.HashMap[Vector3, T]()
 
   private var root: PointRegionOctreeNode[T] = new PROctreeMapLeafNode[T](width, center, nodeCapacity, maxDepth)
 
-  def insert(p: Vector3, value: T): Unit = synchronized {
+  @JSExport def insert(p: Vector3, value: T): Unit = synchronized {
     root = root.insert(p)
     map.put(p, value)
   }
 
-  def radialQuery(p: Vector3, radius: Double): mutable.MutableList[(Vector3, T)] = {
+  @JSExport def radialQuery(p: Vector3, radius: Double): mutable.MutableList[(Vector3, T)] = {
     val matches = mutable.MutableList[(Vector3, T)]()
 
     for (k <- root.radialQuery(p, radius * radius)) {
@@ -72,9 +74,9 @@ class PointRegionOctree[T](width: Double, center:Vector3 = Vector3(0.0, 0.0, 0.0
     matches
   }
 
-  override def size: Int = root.size
+  @JSExport override def size: Int = root.size
 
-  override def iterator: Iterator[(Vector3, T)] = map.iterator
+  @JSExport override def iterator: Iterator[(Vector3, T)] = map.iterator
 }
 
 class PROctreeMapMetaNode[T](override val width: Double, override val center:Vector3 = Vector3(0.0, 0.0, 0.0), nodeCapacity:Int = 10, maxDepth:Int =  10) extends PointRegionOctreeNode[T] {
