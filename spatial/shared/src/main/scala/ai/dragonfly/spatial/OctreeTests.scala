@@ -1,10 +1,10 @@
-package ai.dragonfly.spacial
+package ai.dragonfly.spatial
 
 import ai.dragonfly.math.vector.Vector3
 
 import scala.scalajs.js.annotation.{JSExport, JSExportTopLevel}
 
-@JSExportTopLevel("ai.dragonfly.spacial.OctreeTests")
+@JSExportTopLevel("ai.dragonfly.spatial.OctreeTests")
 object OctreeTests {
   @JSExport def test1(): Unit = {
 
