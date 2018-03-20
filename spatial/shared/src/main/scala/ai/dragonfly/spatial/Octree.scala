@@ -6,7 +6,7 @@ import scala.collection.{Iterator, mutable}
 import scala.scalajs.js.annotation.{JSExport, JSExportTopLevel}
 
 /*
-This implementation of octree lacks a removal method and needs a spatially relevant iterator.
+This implementation of octree lacks a removal method and a spatially ordered iterator.
  */
 
 trait PointRegionOctreeNode[T] {
