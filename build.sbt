@@ -1,30 +1,17 @@
-import sbt.Keys._
+ThisBuild / scalaVersion := "3.1.0"
+ThisBuild / publishTo := Some( Resolver.file( "file",  new File("/var/www/maven") ) )
 
-scalaVersion in ThisBuild := "2.12.3"
-
-name in ThisBuild := "spatial"
-
-organization in ThisBuild := "ai.dragonfly.code"
-
-version in ThisBuild := "0.1"
-
-resolvers in ThisBuild += "dragonfly.ai" at "http://code.dragonfly.ai:8080/"
-
-publishTo in ThisBuild := Some(Resolver.file("file",  new File( "/var/www/maven" )) )
-
-val spatial = crossProject.settings(
-  // shared settings
+lazy val spatial = crossProject(JSPlatform, JVMPlatform).settings(
+  publishTo := Some( Resolver.file( "file",  new File( "/var/www/maven" ) ) ),
+  name := "spatial",
+  version := "0.3",
+  organization := "ai.dragonfly.code",
+  resolvers += "dragonfly.ai" at "https://code.dragonfly.ai/",
+  scalacOptions ++= Seq("-feature","-deprecation"),
+  Compile / mainClass := Some("ai.dragonfly.spatial.OctreeTests"),
   libraryDependencies ++= Seq(
-    "ai.dragonfly.code" %%% "vector" % "0.1",
+    "ai.dragonfly.code" %%% "vector" % "0.4524"
   )
-).jsSettings(
-  // JS-specific settings here
-  jsDependencies += RuntimeDOM
-).jvmSettings(
-  // JVM-specific settings here
-  libraryDependencies += "org.scala-js" %% "scalajs-stubs" % scalaJSVersion % "provided"
+).jvmSettings().jsSettings(
+  scalaJSUseMainModuleInitializer := true
 )
-
-lazy val js = spatial.js
-
-lazy val jvm = spatial.jvm
