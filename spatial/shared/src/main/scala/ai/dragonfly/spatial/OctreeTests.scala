@@ -41,6 +41,21 @@ object OctreeTests extends App {
     println(s"$v ${queryVector.distanceTo(v)} ${queryVector.distanceSquaredTo(v)} -> $i")
   }
 
+  println("test nearest neighbor")
+  for (i <- 0 until 10) {
+    val qv:Vector3 = Vector3(
+      Math.random() * 100.0,
+      Math.random() * 100.0,
+      Math.random() * 100.0
+    )
+
+    ot.nearestNeighbor(qv) match {
+      case Some((nn, i)) => println(s"$qv's nearest neighbor is: $nn:$i at distance: ${qv.distanceTo(nn)}")
+      case None => println(s"$qv has no nearest neighbor?  If $ot.size != 0, you found a bug!")
+    }
+
+  }
+
   println("Test Iterator:")
   for ((v: Vector3, i: Int) <- ot.iterator) {
     println(s"$v -> $i")

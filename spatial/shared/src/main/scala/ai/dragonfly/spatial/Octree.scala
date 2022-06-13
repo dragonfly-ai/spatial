@@ -9,7 +9,6 @@ import scala.scalajs.js.annotation.{JSExport, JSExportTopLevel}
 This implementation of octree lacks:
   - removal method
   - spatially ordered iterator
-  - nearestNeighbor
  */
 
 trait PointRegionOctreeNode[T] {
@@ -54,7 +53,6 @@ trait PointRegionOctreeNode[T] {
   def radialQuery(p: Vector3, radiusSquared: Double): immutable.Seq[Vector3]
 }
 
-// Discritized Lab Space Cardinality: 857623
 // Weights?
 // removal?
 
@@ -194,7 +192,7 @@ class PROctreeMapLeafNode[T](override val width: Double, override val center:Vec
     var matches = immutable.Seq[Vector3]()
 
     for (pC <- points) {
-      if (pC.distanceSquaredTo(p) <= radiusSquared) matches = matches :+ pC
+      if (pC.euclid.distanceSquaredTo(p) <= radiusSquared) matches = matches :+ pC
     }
 
     matches
@@ -205,7 +203,7 @@ class PROctreeMapLeafNode[T](override val width: Double, override val center:Vec
     var closestPoint: Option[Vector3] = None
 
     for (pC <- points) {
-      val dist = pC.distanceSquaredTo(queryPoint)
+      val dist = pC.euclid.distanceSquaredTo(queryPoint)
       if (dist < minDistSquared) {
         minDistSquared = dist
         closestPoint = Some(pC)
@@ -229,7 +227,7 @@ class PROctreeMapMaxDepthNode[T](override val width: Double, override val center
     var matches = immutable.Seq[Vector3]()
 
     for (pC <- points) {
-      if (pC.distanceSquaredTo(p) <= radiusSquared) matches = matches :+ pC
+      if (pC.euclid.distanceSquaredTo(p) <= radiusSquared) matches = matches :+ pC
     }
 
     matches
@@ -240,7 +238,7 @@ class PROctreeMapMaxDepthNode[T](override val width: Double, override val center
     var closestPoint: Option[Vector3] = None
 
     for (pC <- points) {
-      val dist = pC.distanceSquaredTo(queryPoint)
+      val dist = pC.euclid.distanceSquaredTo(queryPoint)
       if (dist < minDistSquared) {
         minDistSquared = dist
         closestPoint = Some(pC)
