@@ -4,7 +4,7 @@ import ai.dragonfly.math.vector.*
 
 object OctreeTests extends App {
   // Test node intersection
-  val metaNode = new PROctreeMapMetaNode[Int](100.0)
+  val metaNode = new PROctreeMapMetaNode[Int](100.0, Vector3(50.0, 50.0, 50.0), 10, 0, 2)
   println(metaNode.intersects(Vector3(1.0, 1.0, 4.0), 10))
   println(metaNode.intersects(Vector3(100.0, 100.0, 100.0), 9.9999))
   println(metaNode.intersects(Vector3(100.0, 100.0, 100.0), 10))
@@ -12,7 +12,8 @@ object OctreeTests extends App {
   println(metaNode.intersects(Vector3(110.0, 110.0, 110.0), 11))
 
   // Test Octree
-  val ot = new PointRegionOctree[Int](100.0)
+  val ot = new PointRegionOctree[Int](100.0, Vector3(50.0, 50.0, 50.0))
+  //for (i <- 0 until 5000000) {
   for (i <- 0 until 10000) {
     ot.insert(
       Vector3(
@@ -30,7 +31,7 @@ object OctreeTests extends App {
     Math.random() * 100.0
   )
 
-  val radius = 5.0
+  val radius = 5
   val radiusSquared = radius * radius
 
   println(s"Query Vector: $queryVector  Radius: $radius  RadiusSquared: $radiusSquared")
@@ -56,9 +57,9 @@ object OctreeTests extends App {
 
   }
 
-  println("Test Iterator:")
-  for ((v: Vector3, i: Int) <- ot.iterator) {
-    println(s"$v -> $i")
-  }
+//  println("Test Iterator:")
+//  for ((v: Vector3, i: Int) <- ot.iterator) {
+//    println(s"$v -> $i")
+//  }
 
 }

@@ -1,8 +1,9 @@
 package ai.dragonfly.spatial
 
+import bridge.array.*
 import ai.dragonfly.math.vector.Vector3
 
-import scala.collection.{Iterator, immutable, mutable}
+import scala.collection.{Iterator, mutable}
 import scala.scalajs.js.annotation.{JSExport, JSExportTopLevel}
 
 /*
@@ -11,7 +12,7 @@ This implementation of octree lacks:
   - spatially ordered iterator
  */
 
-trait PointRegionOctreeNode[T] {
+trait PointRegionOctreeNode[+T] {
   def center: Vector3
   def width: Double
   var size: Int = 0
@@ -50,17 +51,24 @@ trait PointRegionOctreeNode[T] {
 
   def insert(p: Vector3): PointRegionOctreeNode[T]
 
-  def radialQuery(p: Vector3, radiusSquared: Double): immutable.Seq[Vector3]
+  def radialQuery(p: Vector3, radiusSquared: Double): List[Vector3]
+
 }
 
 // Weights?
 // removal?
 
-class PointRegionOctree[T](width: Double, center:Vector3 = Vector3(0.0, 0.0, 0.0), nodeCapacity:Int = 10, maxDepth:Int =  10) extends Iterable[(Vector3, T)] {
+class PointRegionOctree[T](width: Double, center:Vector3 = Vector3(0.0, 0.0, 0.0), nodeCapacity:Int = 32, minDepth:Int = 0, depthMAX:Int =  10) extends Iterable[(Vector3, T)] {
+
+  if (depthMAX < minDepth) throw new Exception(s"maxDepth: $depthMAX must exceed minDepth : $minDepth")
 
   val map: mutable.HashMap[Vector3, T] = mutable.HashMap[Vector3, T]()
 
-  private var root: PointRegionOctreeNode[T] = new PROctreeMapLeafNode[T](width, center, nodeCapacity, maxDepth)
+  private var root: PointRegionOctreeNode[T] = if (minDepth == 1) {
+    new PROctreeMapLeafNode[T](width, center, nodeCapacity, minDepth, depthMAX)
+  } else {
+    new PROctreeMapMetaNode[T](width, center, nodeCapacity, minDepth, depthMAX)
+  }
 
   def insert(p: Vector3, value: T): Unit = synchronized {
     root = root.insert(p)
@@ -74,12 +82,12 @@ class PointRegionOctree[T](width: Double, center:Vector3 = Vector3(0.0, 0.0, 0.0
     (np, value)
   }
 
-  def radialQuery(p: Vector3, radius: Double): immutable.Seq[(Vector3, T)] = {
-    var matches = immutable.Seq[(Vector3, T)]()
+  def radialQuery(p: Vector3, radius: Double): List[(Vector3, T)] = {
+    var matches = List[(Vector3, T)]()
 
     for (k <- root.radialQuery(p, radius * radius)) {
       map.get(k) match {
-        case Some(v: T) => matches = matches :+ ((k, v))
+        case Some(v: T) => matches = (k, v) :: matches
         case None =>
       }
       println(matches)
@@ -93,32 +101,59 @@ class PointRegionOctree[T](width: Double, center:Vector3 = Vector3(0.0, 0.0, 0.0
   override def iterator: Iterator[(Vector3, T)] = map.iterator
 }
 
-class PROctreeMapMetaNode[T](override val width: Double, override val center:Vector3 = Vector3(0.0, 0.0, 0.0), nodeCapacity:Int = 10, maxDepth:Int =  10) extends PointRegionOctreeNode[T] {
+object Octant {
 
-  private val childWidth = width / 2.0
+  def apply[T](
+    factory:(Double,Vector3,Int,Int,Int) => PointRegionOctreeNode[T],
+    width: Double, center:Vector3, nodeCapacity:Int, minDepth:Int, depthMAX:Int
+  ): ARRAY[ARRAY[ARRAY[PointRegionOctreeNode[T]]]] = {
 
-  // Represent Octants in an array
-  val nodes: Array[Array[Array[PointRegionOctreeNode[T]]]] = Array[Array[Array[PointRegionOctreeNode[T]]]] (
-    Array[Array[PointRegionOctreeNode[T]]]( // - X
-      Array[PointRegionOctreeNode[T]](      // - Y
-        new PROctreeMapLeafNode[T](childWidth, Vector3(center.x - childWidth, center.y - childWidth, center.z - childWidth), nodeCapacity, maxDepth - 1), // -X-Y-Z -> 0
-        new PROctreeMapLeafNode[T](childWidth, Vector3(center.x - childWidth, center.y - childWidth, center.z + childWidth), nodeCapacity, maxDepth - 1)  // -X-Y+Z -> 1
+    val childWidth:Double = width / 2.0
+
+    val mnD:Int = Math.max(0, minDepth - 1)
+    val dMX:Int = Math.max(0, depthMAX - 1)
+
+    ARRAY[ARRAY[ARRAY[PointRegionOctreeNode[T]]]] (
+      ARRAY[ARRAY[PointRegionOctreeNode[T]]]( // - X
+        ARRAY[PointRegionOctreeNode[T]](      // - Y
+          factory(childWidth, Vector3(center.x - childWidth, center.y - childWidth, center.z - childWidth), nodeCapacity, mnD, dMX), // -X-Y-Z -> 0
+          factory(childWidth, Vector3(center.x - childWidth, center.y - childWidth, center.z + childWidth), nodeCapacity, mnD, dMX)  // -X-Y+Z -> 1
+        ),
+        ARRAY[PointRegionOctreeNode[T]](      // + Y
+          factory(childWidth, Vector3(center.x - childWidth, center.y + childWidth, center.z - childWidth), nodeCapacity, mnD, dMX), // -X+Y-Z -> 0
+          factory(childWidth, Vector3(center.x - childWidth, center.y + childWidth, center.z + childWidth), nodeCapacity, mnD, dMX)  // -X+Y+Z -> 1
+        )
       ),
-      Array[PointRegionOctreeNode[T]](      // + Y
-        new PROctreeMapLeafNode[T](childWidth, Vector3(center.x - childWidth, center.y + childWidth, center.z - childWidth), nodeCapacity, maxDepth - 1), // -X+Y-Z -> 0
-        new PROctreeMapLeafNode[T](childWidth, Vector3(center.x - childWidth, center.y + childWidth, center.z + childWidth), nodeCapacity, maxDepth - 1)  // -X+Y+Z -> 1
-      )
-    ),
-    Array[Array[PointRegionOctreeNode[T]]]( // + X
-      Array[PointRegionOctreeNode[T]](      // - Y
-        new PROctreeMapLeafNode[T](childWidth, Vector3(center.x + childWidth, center.y - childWidth, center.z - childWidth), nodeCapacity, maxDepth - 1), // +X-Y-Z -> 0
-        new PROctreeMapLeafNode[T](childWidth, Vector3(center.x + childWidth, center.y - childWidth, center.z + childWidth), nodeCapacity, maxDepth - 1)  // +X-Y+Z -> 1
-      ),
-      Array[PointRegionOctreeNode[T]](      // + Y
-        new PROctreeMapLeafNode[T](childWidth, Vector3(center.x + childWidth, center.y + childWidth, center.z - childWidth), nodeCapacity, maxDepth - 1), // +X+Y-Z -> 0
-        new PROctreeMapLeafNode[T](childWidth, Vector3(center.x + childWidth, center.y + childWidth, center.z + childWidth), nodeCapacity, maxDepth - 1)  // +X+Y+Z -> 1
+      ARRAY[ARRAY[PointRegionOctreeNode[T]]]( // + X
+        ARRAY[PointRegionOctreeNode[T]](      // - Y
+          factory(childWidth, Vector3(center.x + childWidth, center.y - childWidth, center.z - childWidth), nodeCapacity, mnD, dMX), // +X-Y-Z -> 0
+          factory(childWidth, Vector3(center.x + childWidth, center.y - childWidth, center.z + childWidth), nodeCapacity, mnD, dMX)  // +X-Y+Z -> 1
+        ),
+        ARRAY[PointRegionOctreeNode[T]](      // + Y
+          factory(childWidth, Vector3(center.x + childWidth, center.y + childWidth, center.z - childWidth), nodeCapacity, mnD, dMX), // +X+Y-Z -> 0
+          factory(childWidth, Vector3(center.x + childWidth, center.y + childWidth, center.z + childWidth), nodeCapacity, mnD, dMX)  // +X+Y+Z -> 1
+        )
       )
     )
+  }
+}
+
+class PROctreeMapMetaNode[T](override val width: Double, override val center:Vector3, nodeCapacity:Int, minDepth:Int, depthMAX:Int) extends PointRegionOctreeNode[T] {
+
+  // Represent Octants in an array
+  val nodes: ARRAY[ARRAY[ARRAY[PointRegionOctreeNode[T]]]] = Octant(
+    if (depthMAX <= 1) {
+      (w: Double, c:Vector3, _:Int, _:Int, _:Int) => new PROctreeMapMaxDepthNode[T](w, c)
+    } else if (minDepth > 1) {
+      (w: Double, c:Vector3, nc:Int, mnD:Int, dMX:Int) => new PROctreeMapMetaNode[T](w, c, nc, mnD, dMX)
+    } else {
+      (w: Double, c:Vector3, nc:Int, mnD:Int, dMX:Int) => new PROctreeMapLeafNode[T](w, c, nc, mnD, dMX)
+    },
+    width,
+    center,
+    nodeCapacity,
+    minDepth,
+    depthMAX
   )
 
   override def insert(p: Vector3): PointRegionOctreeNode[T] = {
@@ -150,9 +185,9 @@ class PROctreeMapMetaNode[T](override val width: Double, override val center:Vec
 
   }
 
-  override def radialQuery(p: Vector3, radiusSquared: Double): immutable.Seq[Vector3] = {
+  override def radialQuery(p: Vector3, radiusSquared: Double): List[Vector3] = {
 
-    var matches = immutable.Seq[Vector3]()
+    var matches = List[Vector3]()
 
     for ( x <- 0 to 1; y <- 0 to 1; z <- 0 to 1 ) {
       if (nodes(x)(y)(z).intersects(p, radiusSquared)) {
@@ -166,8 +201,8 @@ class PROctreeMapMetaNode[T](override val width: Double, override val center:Vec
 
 }
 
-class PROctreeMapLeafNode[T](override val width: Double, override val center:Vector3 = Vector3(0.0, 0.0, 0.0), nodeCapacity:Int = 10, maxDepth:Int = 10) extends PointRegionOctreeNode[T] {
-  val points: Array[Vector3] = new Array[Vector3](nodeCapacity)
+class PROctreeMapLeafNode[+T](override val width: Double, override val center:Vector3, nodeCapacity:Int, minDepth:Int, depthMAX:Int) extends PointRegionOctreeNode[T] {
+  val points: ARRAY[Vector3] = new ARRAY[Vector3](nodeCapacity)
 
   def insert(p: Vector3): PointRegionOctreeNode[T] = {
     if (size < points.length ) {
@@ -178,9 +213,10 @@ class PROctreeMapLeafNode[T](override val width: Double, override val center:Vec
   }
 
   def split(): PointRegionOctreeNode[T] = {
+
     val replacementNode = {
-      if (maxDepth == 0) new PROctreeMapMaxDepthNode[T](width, center)
-      else new PROctreeMapMetaNode[T](width, center, nodeCapacity, maxDepth - 1)
+      if (depthMAX == 0) new PROctreeMapMaxDepthNode[T](width, center)
+      else new PROctreeMapMetaNode[T](width, center, nodeCapacity, minDepth - 1, depthMAX - 1)
     }
 
     for (p <- points) replacementNode.insert(p)
@@ -188,11 +224,11 @@ class PROctreeMapLeafNode[T](override val width: Double, override val center:Vec
     replacementNode
   }
 
-  override def radialQuery(p: Vector3, radiusSquared: Double): immutable.Seq[Vector3] = {
-    var matches = immutable.Seq[Vector3]()
+  override def radialQuery(p: Vector3, radiusSquared: Double): List[Vector3] = {
+    var matches = List[Vector3]()
 
     for (pC <- points) {
-      if (pC.euclid.distanceSquaredTo(p) <= radiusSquared) matches = matches :+ pC
+      if (pC.euclid.distanceSquaredTo(p) <= radiusSquared) matches = pC :: matches
     }
 
     matches
@@ -212,22 +248,23 @@ class PROctreeMapLeafNode[T](override val width: Double, override val center:Vec
 
     closestPoint
   }
+
 }
 
-class PROctreeMapMaxDepthNode[T](override val width: Double, override val center:Vector3 = Vector3(0.0, 0.0, 0.0)) extends PointRegionOctreeNode[T] {
-  var points: immutable.Seq[Vector3] = immutable.Seq[Vector3]()
+class PROctreeMapMaxDepthNode[+T](override val width: Double, override val center:Vector3 = Vector3(0.0, 0.0, 0.0)) extends PointRegionOctreeNode[T] {
+  var points: List[Vector3] = List[Vector3]()
 
   def insert(p: Vector3): PointRegionOctreeNode[T] = {
-    points = points :+ p
+    points = p :: points
     size = size + 1
     this
   }
 
-  override def radialQuery(p: Vector3, radiusSquared: Double): immutable.Seq[Vector3] = {
-    var matches = immutable.Seq[Vector3]()
+  override def radialQuery(p: Vector3, radiusSquared: Double): List[Vector3] = {
+    var matches = List[Vector3]()
 
     for (pC <- points) {
-      if (pC.euclid.distanceSquaredTo(p) <= radiusSquared) matches = matches :+ pC
+      if (pC.euclid.distanceSquaredTo(p) <= radiusSquared) matches = pC :: matches
     }
 
     matches
@@ -247,4 +284,5 @@ class PROctreeMapMaxDepthNode[T](override val width: Double, override val center
 
     closestPoint
   }
+
 }
