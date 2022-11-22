@@ -1,6 +1,6 @@
 package ai.dragonfly.spatial
 
-import bridge.array.*
+import narr.*
 import ai.dragonfly.math.vector.Vector3
 
 import scala.collection.{Iterator, mutable}
@@ -106,30 +106,30 @@ object Octant {
   def apply[T](
     factory:(Double,Vector3,Int,Int,Int) => PointRegionOctreeNode[T],
     width: Double, center:Vector3, nodeCapacity:Int, minDepth:Int, depthMAX:Int
-  ): ARRAY[ARRAY[ARRAY[PointRegionOctreeNode[T]]]] = {
+  ): NArray[NArray[NArray[PointRegionOctreeNode[T]]]] = {
 
     val childWidth:Double = width / 2.0
 
     val mnD:Int = Math.max(0, minDepth - 1)
     val dMX:Int = Math.max(0, depthMAX - 1)
 
-    ARRAY[ARRAY[ARRAY[PointRegionOctreeNode[T]]]] (
-      ARRAY[ARRAY[PointRegionOctreeNode[T]]]( // - X
-        ARRAY[PointRegionOctreeNode[T]](      // - Y
+    NArray[NArray[NArray[PointRegionOctreeNode[T]]]] (
+      NArray[NArray[PointRegionOctreeNode[T]]]( // - X
+        NArray[PointRegionOctreeNode[T]](      // - Y
           factory(childWidth, Vector3(center.x - childWidth, center.y - childWidth, center.z - childWidth), nodeCapacity, mnD, dMX), // -X-Y-Z -> 0
           factory(childWidth, Vector3(center.x - childWidth, center.y - childWidth, center.z + childWidth), nodeCapacity, mnD, dMX)  // -X-Y+Z -> 1
         ),
-        ARRAY[PointRegionOctreeNode[T]](      // + Y
+        NArray[PointRegionOctreeNode[T]](      // + Y
           factory(childWidth, Vector3(center.x - childWidth, center.y + childWidth, center.z - childWidth), nodeCapacity, mnD, dMX), // -X+Y-Z -> 0
           factory(childWidth, Vector3(center.x - childWidth, center.y + childWidth, center.z + childWidth), nodeCapacity, mnD, dMX)  // -X+Y+Z -> 1
         )
       ),
-      ARRAY[ARRAY[PointRegionOctreeNode[T]]]( // + X
-        ARRAY[PointRegionOctreeNode[T]](      // - Y
+      NArray[NArray[PointRegionOctreeNode[T]]]( // + X
+        NArray[PointRegionOctreeNode[T]](      // - Y
           factory(childWidth, Vector3(center.x + childWidth, center.y - childWidth, center.z - childWidth), nodeCapacity, mnD, dMX), // +X-Y-Z -> 0
           factory(childWidth, Vector3(center.x + childWidth, center.y - childWidth, center.z + childWidth), nodeCapacity, mnD, dMX)  // +X-Y+Z -> 1
         ),
-        ARRAY[PointRegionOctreeNode[T]](      // + Y
+        NArray[PointRegionOctreeNode[T]](      // + Y
           factory(childWidth, Vector3(center.x + childWidth, center.y + childWidth, center.z - childWidth), nodeCapacity, mnD, dMX), // +X+Y-Z -> 0
           factory(childWidth, Vector3(center.x + childWidth, center.y + childWidth, center.z + childWidth), nodeCapacity, mnD, dMX)  // +X+Y+Z -> 1
         )
@@ -141,7 +141,7 @@ object Octant {
 class PROctreeMapMetaNode[T](override val width: Double, override val center:Vector3, nodeCapacity:Int, minDepth:Int, depthMAX:Int) extends PointRegionOctreeNode[T] {
 
   // Represent Octants in an array
-  val nodes: ARRAY[ARRAY[ARRAY[PointRegionOctreeNode[T]]]] = Octant(
+  val nodes: NArray[NArray[NArray[PointRegionOctreeNode[T]]]] = Octant(
     if (depthMAX <= 1) {
       (w: Double, c:Vector3, _:Int, _:Int, _:Int) => new PROctreeMapMaxDepthNode[T](w, c)
     } else if (minDepth > 1) {
@@ -202,7 +202,7 @@ class PROctreeMapMetaNode[T](override val width: Double, override val center:Vec
 }
 
 class PROctreeMapLeafNode[+T](override val width: Double, override val center:Vector3, nodeCapacity:Int, minDepth:Int, depthMAX:Int) extends PointRegionOctreeNode[T] {
-  val points: ARRAY[Vector3] = new ARRAY[Vector3](nodeCapacity)
+  val points: NArray[Vector3] = new NArray[Vector3](nodeCapacity)
 
   def insert(p: Vector3): PointRegionOctreeNode[T] = {
     if (size < points.length ) {

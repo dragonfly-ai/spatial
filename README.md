@@ -4,5 +4,9 @@ To use this library with SBT:
 
 <pre>
 resolvers += "dragonfly.ai" at "https://code.dragonfly.ai/"
-libraryDependencies += "ai.dragonfly.code" %%% "spatial" % "0.301.527"
+libraryDependencies += "ai.dragonfly.code" %%% "spatial" % "0.4.53"
 </pre><br />
+
+Projects that rely on Spatial:
+
+https://github.com/dragonfly-ai/bitfrost
