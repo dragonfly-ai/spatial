@@ -4,7 +4,6 @@ import narr.*
 import ai.dragonfly.math.vector.Vector3
 
 import scala.collection.{Iterator, mutable}
-import scala.scalajs.js.annotation.{JSExport, JSExportTopLevel}
 
 /*
 This implementation of octree lacks:
