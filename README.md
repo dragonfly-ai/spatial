@@ -4,7 +4,7 @@ To use this library with SBT:
 
 <pre>
 resolvers += "dragonfly.ai" at "https://code.dragonfly.ai/"
-libraryDependencies += "ai.dragonfly.code" %%% "spatial" % "0.4.5321"
+libraryDependencies += "ai.dragonfly.code" %%% "spatial" % "0.4.5401"
 </pre><br />
 
 Projects that rely on Spatial:
