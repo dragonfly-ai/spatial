@@ -25,12 +25,12 @@ class LeafOctantTest extends munit.FunSuite {
 
   val N: Int = 64
 
-  var o: OctantPR = new LeafOctantPR(Vec[3](0.0, 0.0, 0.0), 100.0)
+  var o: PROctant = new LeafPROctant(Vec[3](0.0, 0.0, 0.0), 100.0)
   val all: NArrayBuilder[Vec[3]] = NArrayBuilder[Vec[3]]()
 
   val boundingRadius:Double = o.bounds.MAX.magnitude
 
-  test(" LeafOctantPR.insert " ) {
+  test(" LeafPROctantMap.insert " ) {
 
     val scalar = (boundingRadius + 0.00001 + Math.random()) * (if (r.nextBoolean()) -1.0 else 1.0)
 
@@ -60,7 +60,7 @@ class LeafOctantTest extends munit.FunSuite {
     assert(o.size == N)
   }
 
-  test(" LeafOctantPR.intersects ") {
+  test(" LeafPROctantMap.intersects ") {
 
     var i:Int = 0
     while (i < N) {
@@ -97,7 +97,7 @@ class LeafOctantTest extends munit.FunSuite {
     out
   }
 
-  test(" LeafOctantPR.nearestNeighbor ") {
+  test(" LeafPROctantMap.nearestNeighbor ") {
 
     // compare with brute force method.
     var qvi = 0
@@ -113,8 +113,8 @@ class LeafOctantTest extends munit.FunSuite {
 
   }
 
-  test(" LeafOctantPR.minDistanceSquaredTo(qv) ") {
-    val lo: OctantPR = new LeafOctantPR(Vec[3](0.0, 0.0, 0.0), 100.0)
+  test(" LeafPROctant.minDistanceSquaredTo(qv) ") {
+    val lo: PROctant = new LeafPROctant(Vec[3](0.0, 0.0, 0.0), 100.0)
 
     // all sides:
     assert(1.0 == lo.minDistanceSquaredTo(Vec[3](-51.0, 0.0, 0.0)))
@@ -147,7 +147,7 @@ class LeafOctantTest extends munit.FunSuite {
     out
   }
 
-  test(" LeafOctantPR.radialQuery ") {
+  test(" LeafPROctantMap.radialQuery ") {
 
     // compare with brute force method.
     var qvi = 0

@@ -21,14 +21,14 @@ import slash.vector.*
 
 import scala.collection.mutable
 
-class OctreeTest extends munit.FunSuite {
+class PROctreeTest extends munit.FunSuite {
 
   val N:Int = 1000
 
-  val ot = new OctreePR(100.0, Vec[3](0.0, 0.0, 0.0))
+  val ot = new PROctree(100.0, Vec[3](0.0, 0.0, 0.0))
   val all: NArrayBuilder[Vec[3]] = NArrayBuilder[Vec[3]]()
 
-  test(" OctreePR Insertion ") {
+  test(" PROctree Insertion ") {
     var i:Int = 0
     while (i < N) {
       val v = r.nextVec[3](-50.0, 50.0)
@@ -48,7 +48,7 @@ class OctreeTest extends munit.FunSuite {
 
   }
 
-  test(" OctreePR.nearestNeighbor ") {
+  test(" PROctree.nearestNeighbor ") {
 
     // compare with brute force method.
 
@@ -95,7 +95,7 @@ class OctreeTest extends munit.FunSuite {
 
   }
 
-  test(" OctreePR.radialQuery ") {
+  test(" PROctree.radialQuery ") {
 
     // compare with brute force method.
 
@@ -130,7 +130,7 @@ class OctreeTest extends munit.FunSuite {
 
   }
 
-  test(" OctreePR.KNN ") {
+  test(" PROctree.KNN ") {
 
     def bruteForceKNN(qv: Vec[3], k:Int): mutable.HashSet[Vec[3]] = {
       val tm: mutable.TreeMap[Double, Vec[3]] = new mutable.TreeMap[Double, Vec[3]]()

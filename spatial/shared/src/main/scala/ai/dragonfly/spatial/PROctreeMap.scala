@@ -1,0 +1,358 @@
+/*
+ * Copyright 2023 dragonfly.ai
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package ai.dragonfly.spatial
+
+import narr.*
+import slash.squareInPlace
+import slash.vector.*
+
+import scala.collection.mutable
+import scala.reflect.ClassTag
+
+class PROctreeMap[T:ClassTag](extent: Double, center:Vec[3] = Vec[3](0.0, 0.0, 0.0), maxNodeCapacity:Int = 64) {
+
+  private var root: PROctantMap[T] = new LeafPROctantMap(center, extent, maxNodeCapacity)
+  val keys: NArrayBuilder[Vec[3]] = NArrayBuilder[Vec[3]]()
+  val values: NArrayBuilder[T] = NArrayBuilder[T]()
+
+  def insert(v: Vec[3], value:T): Boolean = synchronized {
+    if (encompasses(v)) {
+      val id = root.size
+      root = root.insert(v, id)
+      if (id + 1 == root.size) {
+        keys.addOne(v)
+        values.addOne(value)
+        true
+      } else false
+    } else false
+  }
+
+  inline def encompasses(qv: Vec[3]):Boolean = root.encompasses(qv)
+
+  def nearestNeighbor(qv: Vec[3]): (Vec[3], T) = {
+    val (nnv, nnid) = root.nearestNeighbor(qv)
+    (nnv, values(nnid))
+  }
+
+  // K-Nearest Neighbor Search
+  def KNN(qv: Vec[3], k: Int): NArray[(Vec[3], T)] = {
+    if (this.size < k) throw IllegalArgumentException(
+      s"KNN can't find $k nearest neighbors in PROctreeMap of size: ${this.size}."
+    )
+
+    case class Candidate(point: (Vec[3], Int), distanceSquared: Double)
+    given ord: Ordering[Candidate] = Ordering.by(_.distanceSquared) // Min-heap (closest first)
+    val pq = mutable.PriorityQueue.empty[Candidate](ord) // Max-heap (farthest first)
+
+    def search(node: PROctantMap[T]): Unit = node match {
+      case lo: LeafPROctantMap[T] =>
+        var pi = 0
+        while (pi < lo.points.size) {
+          val p = lo.points(pi)
+          val pid = lo.ids(pi)
+          val dstSq = qv.euclideanDistanceSquaredTo(p) //(v - qv).magnitude
+          if (pq.size < k) pq.enqueue(Candidate((p, pid), dstSq))
+          else if (dstSq < pq.head.distanceSquared) {
+            pq.dequeue()
+            pq.enqueue(Candidate((p, pid), dstSq))
+          }
+          pi = pi + 1
+        }
+      case mo: MetaPROctantMap[T] =>
+        // Check distance to node boundary
+        val closestDist = mo.minDistanceSquaredTo(qv)
+        if (pq.size < k || closestDist < pq.head.distanceSquared) mo.foreachNode(search)
+    }
+
+    search(root)
+
+    NArray.tabulate[(Vec[3], T)](pq.size)(
+      _ => {
+        val (mv, mid) = pq.dequeue().point
+        (mv, values(mid))
+      }
+    )
+  }
+
+  def radialQuery(pq: Vec[3], radius: Double): NArray[(Vec[3], T)] = {
+    val matches = root.radialQuery(pq, squareInPlace(radius))
+    NArray.tabulate[(Vec[3], T)](matches.length)(
+      (i:Int) => {
+        val (mv, mid) = matches(i)
+        (mv, values(mid))
+      }
+    )
+  }
+
+  def size: Int = root.size
+
+  def bounds:VecBounds[3] = root.bounds
+
+}
+
+trait PROctantMap[T] {
+
+  val center: Vec[3]
+  val extent: Double
+
+  // infNorm: half side length, L∞ norm (max distance from center to face)
+  lazy val infNorm: Double = extent / 2.0
+  private lazy val nCorner = Vec[3](center.x - infNorm, center.y - infNorm, center.z - infNorm)
+  private lazy val pCorner = Vec[3](center.x + infNorm, center.y + infNorm, center.z + infNorm)
+  lazy val bounds: VecBounds[3] = VecBounds[3](nCorner, pCorner)
+  //private lazy val boundingRadius = nCorner.euclideanDistanceTo(pCorner) / 2.0
+
+  def size: Int
+
+  def intersects(v: Vec[3], radiusSquared: Double): Boolean = {
+    var distSquared = 0.0
+
+    if (v.x < nCorner.x) distSquared += squareInPlace(v.x - nCorner.x)
+    else if (v.x > pCorner.x) distSquared += squareInPlace(v.x - pCorner.x)
+
+    if (v.y < nCorner.y) distSquared += squareInPlace(v.y - nCorner.y)
+    else if (v.y > pCorner.y) distSquared += squareInPlace(v.y - pCorner.y)
+
+    if (v.z < nCorner.z) distSquared += squareInPlace(v.z - nCorner.z)
+    else if (v.z > pCorner.z) distSquared += squareInPlace(v.z - pCorner.z)
+
+    distSquared <= radiusSquared
+  }
+
+  inline def encompasses(v: Vec[3]): Boolean = bounds.contains(v)
+
+  def minDistanceSquaredTo(v: Vec[3]): Double = {
+    squareInPlace(Math.max(0.0, Math.max(nCorner.x - v.x, v.x - pCorner.x))) +
+      squareInPlace(Math.max(0.0, Math.max(nCorner.y - v.y, v.y - pCorner.y))) +
+      squareInPlace(Math.max(0.0, Math.max(nCorner.z - v.z, v.z - pCorner.z)))
+
+    //    squareInPlace(Math.max(0.0, Math.abs(v.x - center.x) - infNorm)) +
+    //    squareInPlace(Math.max(0.0, Math.abs(v.y - center.y) - infNorm)) +
+    //    squareInPlace(Math.max(0.0, Math.abs(v.z - center.z) - infNorm))
+  }
+
+  def nearestNeighbor(qv: Vec[3]): (Vec[3], Int)
+
+  def insert(v: Vec[3], id:Int): PROctantMap[T]
+
+  def radialQuery(qv: Vec[3], radiusSquared: Double): NArray[(Vec[3], Int)]
+
+}
+
+class MetaPROctantMap[T](override val center:Vec[3], override val extent: Double, maxNodeCapacity:Int = 64) extends PROctantMap[T] {
+
+  var s:Int = 0
+
+  // Represent Octants in an array
+  val nodes: NArray[NArray[NArray[PROctantMap[T]]]] = {
+    val childInfNorm:Double = infNorm / 2.0
+    val childExtent:Double = infNorm
+
+    NArray[NArray[NArray[PROctantMap[T]]]](
+      NArray[NArray[PROctantMap[T]]]( // - X
+        NArray[PROctantMap[T]]( // - Y
+          LeafPROctantMap[T](Vec[3](center.x - childInfNorm, center.y - childInfNorm, center.z - childInfNorm), childExtent, maxNodeCapacity), // -X-Y-Z -> 0
+          LeafPROctantMap[T](Vec[3](center.x - childInfNorm, center.y - childInfNorm, center.z + childInfNorm), childExtent, maxNodeCapacity) // -X-Y+Z -> 1
+        ),
+        NArray[PROctantMap[T]]( // + Y
+          LeafPROctantMap[T](Vec[3](center.x - childInfNorm, center.y + childInfNorm, center.z - childInfNorm), childExtent, maxNodeCapacity), // -X+Y-Z -> 0
+          LeafPROctantMap[T](Vec[3](center.x - childInfNorm, center.y + childInfNorm, center.z + childInfNorm), childExtent, maxNodeCapacity) // -X+Y+Z -> 1
+        )
+      ),
+      NArray[NArray[PROctantMap[T]]]( // + X
+        NArray[PROctantMap[T]]( // - Y
+          LeafPROctantMap[T](Vec[3](center.x + childInfNorm, center.y - childInfNorm, center.z - childInfNorm), childExtent, maxNodeCapacity), // +X-Y-Z -> 0
+          LeafPROctantMap[T](Vec[3](center.x + childInfNorm, center.y - childInfNorm, center.z + childInfNorm), childExtent, maxNodeCapacity) // +X-Y+Z -> 1
+        ),
+        NArray[PROctantMap[T]]( // + Y
+          LeafPROctantMap[T](Vec[3](center.x + childInfNorm, center.y + childInfNorm, center.z - childInfNorm), childExtent, maxNodeCapacity), // +X+Y-Z -> 0
+          LeafPROctantMap[T](Vec[3](center.x + childInfNorm, center.y + childInfNorm, center.z + childInfNorm), childExtent, maxNodeCapacity) // +X+Y+Z -> 1
+        )
+      )
+    )
+  }
+
+  def foreachNode(f:PROctantMap[T] => Any): Unit = {
+    var xi = 0
+    while (xi < 2) {
+      var yi = 0
+      while (yi < 2) {
+        var zi = 0
+        while (zi < 2) {
+          f(nodes(xi)(yi)(zi))
+          zi = zi + 1
+        }
+        yi = yi + 1
+      }
+      xi = xi + 1
+    }
+  }
+
+  override inline def size:Int = s
+
+  override def insert(v: Vec[3], id:Int): PROctantMap[T] = {
+    if (this.encompasses(v)) {
+      val x = if (v.x - center.x < 0.0) 0 else 1
+      val y = if (v.y - center.y < 0.0) 0 else 1
+      val z = if (v.z - center.z < 0.0) 0 else 1
+
+      nodes(x)(y)(z) = nodes(x)(y)(z).insert(v, id)
+      s = s + 1
+      this
+    } else throw new IllegalArgumentException(s"$v is not inside node: $this")
+  }
+
+  override def nearestNeighbor(qv: Vec[3]): (Vec[3], Int) = {
+
+    if (this.size < 1) throw new NoSuchElementException("Can't find a nearest neighbor from an empty node.")
+
+    val x = if (qv.x - center.x < 0.0) 0 else 1
+    val y = if (qv.y - center.y < 0.0) 0 else 1
+    val z = if (qv.z - center.z < 0.0) 0 else 1
+
+    var node = nodes(x)(y)(z)
+
+    var nn = node.nearestNeighbor(qv)
+
+    var nnDistSquared:Double = qv.euclideanDistanceSquaredTo(nn._1)
+
+    var xi = 0
+    while (xi < 2) {
+      var yi = 0
+      while (yi < 2) {
+        var zi = 0
+        while (zi < 2) {
+          if (xi != x || yi != y || zi != z) {
+            node = nodes(xi)(yi)(zi)
+            if (node.size > 0 && node.minDistanceSquaredTo(qv) < nnDistSquared) {
+              val candidate = node.nearestNeighbor(qv)
+              val cd: Double = qv.euclideanDistanceSquaredTo(candidate._1)
+              if (cd < nnDistSquared) {
+                nnDistSquared = cd
+                nn = candidate
+              }
+            }
+          }
+          zi = zi + 1
+        }
+        yi = yi + 1
+      }
+      xi = xi + 1
+    }
+
+    nn
+  }
+
+  override def radialQuery(qv: Vec[3], radiusSquared: Double): NArray[(Vec[3], Int)] = {
+
+    val matches: NArrayBuilder[(Vec[3], Int)] = NArrayBuilder[(Vec[3], Int)]()
+
+    var xi = 0
+    while (xi < 2) {
+      var yi = 0
+      while (yi < 2) {
+        var zi = 0
+        while (zi < 2) {
+          if (nodes(xi)(yi)(zi).intersects(qv, radiusSquared)) {
+            matches.addAll(nodes(xi)(yi)(zi).radialQuery(qv, radiusSquared))
+          }
+          zi = zi + 1
+        }
+        yi = yi + 1
+      }
+      xi = xi + 1
+    }
+
+    matches.result
+  }
+
+  override def toString: String = s"MetaPROctantMap(center = ${center.show}, extent = $extent, maxNodeCapacity = $maxNodeCapacity, size = $size)"
+
+}
+
+class LeafPROctantMap[T](override val center:Vec[3], override val extent: Double, maxNodeCapacity:Int = 64) extends PROctantMap[T] {
+  val points: NArrayBuilder[Vec[3]] = NArrayBuilder[Vec[3]]()
+  val ids: NArrayBuilder[Int] = NArrayBuilder[Int]()
+
+  override inline def size:Int = points.size
+
+  def insert(v: Vec[3], id:Int): PROctantMap[T] = {
+    // Verify containment?
+    if (this.encompasses(v)) {
+      if (size < maxNodeCapacity) {
+        points.addOne(v)
+        ids.addOne(id)
+        this
+      } else {
+        //println(s"$this.split()")
+        split().insert(v, id)
+      }
+    } else throw new IllegalArgumentException(s"$v is not inside node: $this")
+  }
+
+  private def split(): PROctantMap[T] = {
+    val replacementNode = new MetaPROctantMap[T](center, extent, maxNodeCapacity)
+    //println(s"LeafPROctantMap.split(size = $size, maxNodeCapacity = $maxNodeCapacity) -> $replacementNode")
+
+    var i:Int = 0
+    while (i < points.size) {
+      val p = points(i)
+      val id = ids(i)
+      replacementNode.insert(p, id)
+      i += 1
+    }
+
+    replacementNode
+  }
+
+  override def radialQuery(qv: Vec[3], radiusSquared: Double): NArray[(Vec[3], Int)] = {
+    val matches: NArrayBuilder[(Vec[3], Int)] = NArrayBuilder[(Vec[3], Int)]()
+
+    var pi: Int = 0
+    while (pi < points.size) {
+      val pC = points(pi)
+      if (pC.euclideanDistanceSquaredTo(qv) <= radiusSquared) matches.addOne((pC, ids(pi)))
+      pi += 1
+    }
+
+    matches.result
+  }
+
+  override def nearestNeighbor(qv: Vec[3]): (Vec[3], Int) = {
+    if (points.size < 1) throw new NoSuchElementException("Can't find a nearest neighbor from an empty node.")
+    else {
+      var nn: (Vec[3], Int) = (points(0), ids(0))
+      var minDistSquared = qv.euclideanDistanceSquaredTo(nn._1)
+
+      var i: Int = 1
+      while (i < points.size) {
+        val candidate = points(i)
+        val dist = qv.euclideanDistanceSquaredTo(candidate)
+        if (dist < minDistSquared) {
+          minDistSquared = dist
+          nn = (candidate, ids(i))
+        }
+        i += 1
+      }
+
+      nn
+    }
+  }
+
+  override def toString: String = s"LeafPROctantMap(center = ${center.show}, extent = $extent, maxNodeCapacity = $maxNodeCapacity, size = $size)"
+
+}
