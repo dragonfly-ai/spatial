@@ -11,16 +11,18 @@ Design Goals:
 <li>Seamlessly interoperate with native languages like JavaScript, C/C++, and Java</li>
 </ol>
 
-&nbsp;&nbsp;&nbsp;To meet these design goal, Spatial relies on [SLASH](https://github.com/dragonfly-ai/slash) for its vector formats.  TLDR, that means that regardless of platform, it uses the lightest, fastest, and most portable possible vector format in the entire Scala ecosystem.
+&nbsp;&nbsp;&nbsp;To meet these design goals, Spatial relies on [SLASH](https://github.com/dragonfly-ai/slash) for its vector formats.&nbsp;&nbsp;TLDR: regardless of platform, it uses the lightest, fastest, and most portable vector format in the entire Scala ecosystem.
 
-&nbsp;&nbsp;&nbsp;To circumvent collections overhead, Spatial relies on [NArr](https://github.com/dragonfly-ai/narr) and its highly optimized `NArrayBuilder[T]`.  This simultaneously minimizes memory footprint, maximizes speed, and maximizes platform interop. 
+&nbsp;&nbsp;&nbsp;To circumvent collections overhead, Spatial relies on [NArr](https://github.com/dragonfly-ai/narr) and its highly optimized `NArrayBuilder[T]`.&nbsp;&nbsp;This simultaneously minimizes memory footprint and maximizes speed. 
 
-&nbsp;&nbsp;&nbsp;Spatial provides data structures optimized for efficient population and querying.  Concerns like thread safety and standard Scala collections semantics go partially supported or, in cases like element removal, completely ignored.
+&nbsp;&nbsp;&nbsp;Spatial data structures optimize population and querying.&nbsp;&nbsp;Concerns like thread safety and standard Scala collections semantics go partially supported or, in cases like element removal, completely ignored.
 We make it efficient and easy to build QuadTrees and Octrees and then perform nearest neighbor, k-nearest neighbor, and radial searches on them.
 Instead of removing nodes, though, we recommend building a new data structure from scratch with the removed nodes omitted.
-Instead of iterating over a spatial data structure as one does with normal scala collections, we recommend storing references to the same points in another collection for filtering, mapping, traversal, etc.
+Likewise, instead of iterating over a spatial data structure as one does with normal Scala collections.  If you need to `map`, `filter`, `foreach`, etc, we recommend storing references to the same points in a traditional Scala collection.
 
-We aspire to add support for k-d trees in the near future, and variants of Octree and QuadTree that support volumes, not just points.  Pull requests welcome!
+We aspire to add support for k-d trees in the near future, and variants of Octree and QuadTree that support volumes/areas, not just points.
+
+Pull requests welcome!
 
 To use this library with SBT:
 
