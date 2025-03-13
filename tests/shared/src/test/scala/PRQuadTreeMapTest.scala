@@ -25,14 +25,14 @@ class PRQuadTreeMapTest extends munit.FunSuite {
 
   val N:Int = 1000
 
-  val otm = new PRQuadTreeMap[String](100.0, Vec[2](0.0, 0.0))
+  val qtm = new PRQuadTreeMap[String](100.0, Vec[2](0.0, 0.0))
   val all: NArrayBuilder[(Vec[2], String)] = NArrayBuilder[(Vec[2], String)]()
 
   test(" PRQuadTreeMap Insertion ") {
     var i:Int = 0
     while (i < N) {
       val v = r.nextVec[2](-50.0, 50.0)
-      if (otm.insert(v, v.show)) {
+      if (qtm.insert(v, v.show)) {
         all.addOne((v, v.show))
       } else {
         println("insert failed.")
@@ -41,10 +41,10 @@ class PRQuadTreeMapTest extends munit.FunSuite {
 
       i += 1
 
-      assertEquals(otm.size, i)
+      assertEquals(qtm.size, i)
       assertEquals(all.size, i)
     }
-    assertEquals(otm.size, N)
+    assertEquals(qtm.size, N)
 
   }
 
@@ -72,7 +72,7 @@ class PRQuadTreeMapTest extends munit.FunSuite {
     var qvi = 0
     while (qvi < all.size) {
       val (qv, str) = all(qvi)
-      val nn = otm.nearestNeighbor(qv)
+      val nn = qtm.nearestNeighbor(qv)
       //println(s"self NN ? ${qv.show} ~ ${nn.show}")
       assertEquals(qv, nn._1)
       qvi = qvi + 1
@@ -83,7 +83,7 @@ class PRQuadTreeMapTest extends munit.FunSuite {
     while (qvi < 10) {
       val qv = r.nextVec[2](-100, 100.0)
       val bfnn = bruteForceNearestNeighbor(qv)
-      val nn = otm.nearestNeighbor(qv)
+      val nn = qtm.nearestNeighbor(qv)
       //println(s"${qv.show} ~ ${bfnn.show} vs ${nn.show}")
       assertEquals(
         qv.euclideanDistanceSquaredTo(nn._1),
@@ -113,8 +113,8 @@ class PRQuadTreeMapTest extends munit.FunSuite {
     var qvi = 0
     while (qvi < 10) {
       val qv = r.nextVec[2](-50, 50.0)
-      val radius = Math.random() * otm.bounds.MAX.magnitude
-      val results = otm.radialQuery(qv, radius)
+      val radius = Math.random() * qtm.bounds.MAX.magnitude
+      val results = qtm.radialQuery(qv, radius)
       val bruteForceResults = bruteForceRadialQuery(qv, slash.squareInPlace(radius))
 
       //println(s"radiusSquared = $radius found ${results.length} == ${bruteForceResults.size}")
@@ -150,7 +150,7 @@ class PRQuadTreeMapTest extends munit.FunSuite {
     while (qvi < 1000) {
       val K:Int = r.between(2, 11)
       val qv = r.nextVec[2](-50, 50.0)
-      val results = otm.knn(qv, K)
+      val results = qtm.knn(qv, K)
       val bruteForceResults = bruteForceKNN(qv, K)
 
       if (results.length != bruteForceResults.size) {

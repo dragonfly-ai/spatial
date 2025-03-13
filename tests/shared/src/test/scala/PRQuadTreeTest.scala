@@ -25,14 +25,14 @@ class PRQuadTreeTest extends munit.FunSuite {
 
   val N:Int = 1000
 
-  val ot = new PRQuadTree(100.0, Vec[2](0.0, 0.0))
+  val qt = new PRQuadTree(100.0, Vec[2](0.0, 0.0))
   val all: NArrayBuilder[Vec[2]] = NArrayBuilder[Vec[2]]()
 
   test(" PRQuadTree Insertion ") {
     var i:Int = 0
     while (i < N) {
       val v = r.nextVec[2](-50.0, 50.0)
-      if (ot.insert(v)) {
+      if (qt.insert(v)) {
         all.addOne(v)
       } else {
         println("insert failed.")
@@ -41,10 +41,10 @@ class PRQuadTreeTest extends munit.FunSuite {
 
       i += 1
 
-      assertEquals(ot.size, i)
+      assertEquals(qt.size, i)
       assertEquals(all.size, i)
     }
-    assertEquals(ot.size, N)
+    assertEquals(qt.size, N)
 
   }
 
@@ -72,7 +72,7 @@ class PRQuadTreeTest extends munit.FunSuite {
     var qvi = 0
     while (qvi < all.size) {
       val qv = all(qvi)
-      val nn = ot.nearestNeighbor(qv)
+      val nn = qt.nearestNeighbor(qv)
       //println(s"self NN ? ${qv.show} ~ ${nn.show}")
       assertEquals(qv, nn)
       qvi = qvi + 1
@@ -83,7 +83,7 @@ class PRQuadTreeTest extends munit.FunSuite {
     while (qvi < 10) {
       val qv = r.nextVec[2](-100, 100.0)
       val bfnn = bruteForceNearestNeighbor(qv)
-      val nn = ot.nearestNeighbor(qv)
+      val nn = qt.nearestNeighbor(qv)
       //println(s"${qv.show} ~ ${bfnn.show} vs ${nn.show}")
       assertEquals(
         qv.euclideanDistanceSquaredTo(nn),
@@ -113,8 +113,8 @@ class PRQuadTreeTest extends munit.FunSuite {
     var qvi = 0
     while (qvi < 10) {
       val qv = r.nextVec[2](-50, 50.0)
-      val radius = Math.random() * ot.bounds.MAX.magnitude
-      val results = ot.radialQuery(qv, radius)
+      val radius = Math.random() * qt.bounds.MAX.magnitude
+      val results = qt.radialQuery(qv, radius)
       val bruteForceResults = bruteForceRadialQuery(qv, slash.squareInPlace(radius))
 
       //println(s"radiusSquared = $radius found ${results.length} == ${bruteForceResults.size}")
@@ -150,7 +150,7 @@ class PRQuadTreeTest extends munit.FunSuite {
     while (qvi < 1000) {
       val K:Int = r.between(2, 11)
       val qv = r.nextVec[2](-50, 50.0)
-      val results = ot.knn(qv, K)
+      val results = qt.knn(qv, K)
       val bruteForceResults = bruteForceKNN(qv, K)
 
       if (results.length != bruteForceResults.size) {
