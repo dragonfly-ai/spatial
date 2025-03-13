@@ -49,9 +49,9 @@ class PROctreeMap[T:ClassTag](extent: Double, center:Vec[3] = Vec[3](0.0, 0.0, 0
   }
 
   // K-Nearest Neighbor Search
-  def KNN(qv: Vec[3], k: Int): NArray[(Vec[3], T)] = {
+  def knn(qv: Vec[3], k: Int): NArray[(Vec[3], T)] = {
     if (this.size < k) throw IllegalArgumentException(
-      s"KNN can't find $k nearest neighbors in PROctreeMap of size: ${this.size}."
+      s"knn can't find $k nearest neighbors in PROctreeMap of size: ${this.size}."
     )
 
     case class Candidate(point: (Vec[3], Int), distanceSquared: Double)
@@ -258,7 +258,6 @@ class MetaPROctantMap[T](override val center:Vec[3], override val extent: Double
   }
 
   override def radialQuery(qv: Vec[3], radiusSquared: Double): NArray[(Vec[3], Int)] = {
-
     val matches: NArrayBuilder[(Vec[3], Int)] = NArrayBuilder[(Vec[3], Int)]()
 
     var xi = 0

@@ -14,24 +14,24 @@
  * limitations under the License.
  */
 
-import narr.*
 import ai.dragonfly.spatial.*
+import narr.*
 import slash.Random.{defaultRandom as r, *}
 import slash.vector.*
 
 import scala.collection.mutable
 
-class PROctreeTest extends munit.FunSuite {
+class PRQuadTreeTest extends munit.FunSuite {
 
   val N:Int = 1000
 
-  val ot = new PROctree(100.0, Vec[3](0.0, 0.0, 0.0))
-  val all: NArrayBuilder[Vec[3]] = NArrayBuilder[Vec[3]]()
+  val ot = new PRQuadTree(100.0, Vec[2](0.0, 0.0))
+  val all: NArrayBuilder[Vec[2]] = NArrayBuilder[Vec[2]]()
 
-  test(" PROctree Insertion ") {
+  test(" PRQuadTree Insertion ") {
     var i:Int = 0
     while (i < N) {
-      val v = r.nextVec[3](-50.0, 50.0)
+      val v = r.nextVec[2](-50.0, 50.0)
       if (ot.insert(v)) {
         all.addOne(v)
       } else {
@@ -48,12 +48,12 @@ class PROctreeTest extends munit.FunSuite {
 
   }
 
-  test(" PROctree.nearestNeighbor ") {
+  test(" PRQuadTree.nearestNeighbor ") {
 
     // compare with brute force method.
 
-    def bruteForceNearestNeighbor(qv:Vec[3]): Vec[3] = {
-      var out:Vec[3] = all(0)
+    def bruteForceNearestNeighbor(qv:Vec[2]): Vec[2] = {
+      var out:Vec[2] = all(0)
       var dist = qv.euclideanDistanceSquaredTo(out)
       var i = 1
       while (i < all.size) {
@@ -81,7 +81,7 @@ class PROctreeTest extends munit.FunSuite {
     // nn tests
     qvi = 0
     while (qvi < 10) {
-      val qv = r.nextVec[3](-100, 100.0)
+      val qv = r.nextVec[2](-100, 100.0)
       val bfnn = bruteForceNearestNeighbor(qv)
       val nn = ot.nearestNeighbor(qv)
       //println(s"${qv.show} ~ ${bfnn.show} vs ${nn.show}")
@@ -95,12 +95,12 @@ class PROctreeTest extends munit.FunSuite {
 
   }
 
-  test(" PROctree.radialQuery ") {
+  test(" PRQuadTree.radialQuery ") {
 
     // compare with brute force method.
 
-    def bruteForceRadialQuery(qv: Vec[3], radiusSquared: Double): mutable.HashSet[Vec[3]] = {
-      val out: mutable.HashSet[Vec[3]] = mutable.HashSet[Vec[3]]()
+    def bruteForceRadialQuery(qv: Vec[2], radiusSquared: Double): mutable.HashSet[Vec[2]] = {
+      val out: mutable.HashSet[Vec[2]] = mutable.HashSet[Vec[2]]()
       var i = 0
       while (i < all.size) {
         val tv = all(i)
@@ -112,7 +112,7 @@ class PROctreeTest extends munit.FunSuite {
 
     var qvi = 0
     while (qvi < 10) {
-      val qv = r.nextVec[3](-50, 50.0)
+      val qv = r.nextVec[2](-50, 50.0)
       val radius = Math.random() * ot.bounds.MAX.magnitude
       val results = ot.radialQuery(qv, radius)
       val bruteForceResults = bruteForceRadialQuery(qv, slash.squareInPlace(radius))
@@ -130,10 +130,10 @@ class PROctreeTest extends munit.FunSuite {
 
   }
 
-  test(" PROctree.knn ") {
+  test(" PRQuadTree.knn ") {
 
-    def bruteForceKNN(qv: Vec[3], k:Int): mutable.HashSet[Vec[3]] = {
-      val tm: mutable.TreeMap[Double, Vec[3]] = new mutable.TreeMap[Double, Vec[3]]()
+    def bruteForceKNN(qv: Vec[2], k:Int): mutable.HashSet[Vec[2]] = {
+      val tm: mutable.TreeMap[Double, Vec[2]] = new mutable.TreeMap[Double, Vec[2]]()
 
       var i = 0
       while (i < all.size) {
@@ -141,7 +141,7 @@ class PROctreeTest extends munit.FunSuite {
         tm.put(qv.euclideanDistanceSquaredTo(tv), tv)
         i = i + 1
       }
-      val out = new mutable.HashSet[Vec[3]]()
+      val out = new mutable.HashSet[Vec[2]]()
       out.addAll(tm.take(k).values)
       out
     }
@@ -149,7 +149,7 @@ class PROctreeTest extends munit.FunSuite {
     var qvi = 0
     while (qvi < 1000) {
       val K:Int = r.between(2, 11)
-      val qv = r.nextVec[3](-50, 50.0)
+      val qv = r.nextVec[2](-50, 50.0)
       val results = ot.knn(qv, K)
       val bruteForceResults = bruteForceKNN(qv, K)
 
@@ -182,6 +182,5 @@ class PROctreeTest extends munit.FunSuite {
     }
 
   }
-
 
 }

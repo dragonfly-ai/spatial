@@ -130,7 +130,7 @@ class PROctreeMapTest extends munit.FunSuite {
 
   }
 
-  test(" PROctreeMap.KNN ") {
+  test(" PROctreeMap.knn ") {
 
     def bruteForceKNN(qv: Vec[3], k:Int): mutable.HashSet[(Vec[3], String)] = {
       val tm: mutable.TreeMap[Double, (Vec[3], String)] = new mutable.TreeMap[Double, (Vec[3], String)]()
@@ -150,7 +150,7 @@ class PROctreeMapTest extends munit.FunSuite {
     while (qvi < 1000) {
       val K:Int = r.between(2, 11)
       val qv = r.nextVec[3](-50, 50.0)
-      val results = otm.KNN(qv, K)
+      val results = otm.knn(qv, K)
       val bruteForceResults = bruteForceKNN(qv, K)
 
       if (results.length != bruteForceResults.size) {
@@ -176,7 +176,7 @@ class PROctreeMapTest extends munit.FunSuite {
         assert(bruteForceResults.contains(rv))
       }
       assert(Math.abs(bftd - td) < 0.00001)
-      //println(s"KNN Total Distance: $td")
+      //println(s"knn Total Distance: $td")
 
       qvi += 1
     }

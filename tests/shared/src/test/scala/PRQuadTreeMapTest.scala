@@ -14,26 +14,26 @@
  * limitations under the License.
  */
 
-import narr.*
 import ai.dragonfly.spatial.*
+import narr.*
 import slash.Random.{defaultRandom as r, *}
 import slash.vector.*
 
 import scala.collection.mutable
 
-class PROctreeTest extends munit.FunSuite {
+class PRQuadTreeMapTest extends munit.FunSuite {
 
   val N:Int = 1000
 
-  val ot = new PROctree(100.0, Vec[3](0.0, 0.0, 0.0))
-  val all: NArrayBuilder[Vec[3]] = NArrayBuilder[Vec[3]]()
+  val otm = new PRQuadTreeMap[String](100.0, Vec[2](0.0, 0.0))
+  val all: NArrayBuilder[(Vec[2], String)] = NArrayBuilder[(Vec[2], String)]()
 
-  test(" PROctree Insertion ") {
+  test(" PRQuadTreeMap Insertion ") {
     var i:Int = 0
     while (i < N) {
-      val v = r.nextVec[3](-50.0, 50.0)
-      if (ot.insert(v)) {
-        all.addOne(v)
+      val v = r.nextVec[2](-50.0, 50.0)
+      if (otm.insert(v, v.show)) {
+        all.addOne((v, v.show))
       } else {
         println("insert failed.")
         assert(false)
@@ -41,24 +41,24 @@ class PROctreeTest extends munit.FunSuite {
 
       i += 1
 
-      assertEquals(ot.size, i)
+      assertEquals(otm.size, i)
       assertEquals(all.size, i)
     }
-    assertEquals(ot.size, N)
+    assertEquals(otm.size, N)
 
   }
 
-  test(" PROctree.nearestNeighbor ") {
+  test(" PRQuadTreeMap.nearestNeighbor ") {
 
     // compare with brute force method.
 
-    def bruteForceNearestNeighbor(qv:Vec[3]): Vec[3] = {
-      var out:Vec[3] = all(0)
-      var dist = qv.euclideanDistanceSquaredTo(out)
+    def bruteForceNearestNeighbor(qv:Vec[2]): (Vec[2], String) = {
+      var out:(Vec[2], String) = all(0)
+      var dist = qv.euclideanDistanceSquaredTo(out._1)
       var i = 1
       while (i < all.size) {
         val tv = all(i)
-        val td = qv.euclideanDistanceSquaredTo(tv)
+        val td = qv.euclideanDistanceSquaredTo(tv._1)
         if (td < dist) {
           dist = td
           out = tv
@@ -71,23 +71,23 @@ class PROctreeTest extends munit.FunSuite {
     // nn exact match tests
     var qvi = 0
     while (qvi < all.size) {
-      val qv = all(qvi)
-      val nn = ot.nearestNeighbor(qv)
+      val (qv, str) = all(qvi)
+      val nn = otm.nearestNeighbor(qv)
       //println(s"self NN ? ${qv.show} ~ ${nn.show}")
-      assertEquals(qv, nn)
+      assertEquals(qv, nn._1)
       qvi = qvi + 1
     }
 
     // nn tests
     qvi = 0
     while (qvi < 10) {
-      val qv = r.nextVec[3](-100, 100.0)
+      val qv = r.nextVec[2](-100, 100.0)
       val bfnn = bruteForceNearestNeighbor(qv)
-      val nn = ot.nearestNeighbor(qv)
+      val nn = otm.nearestNeighbor(qv)
       //println(s"${qv.show} ~ ${bfnn.show} vs ${nn.show}")
       assertEquals(
-        qv.euclideanDistanceSquaredTo(nn),
-        qv.euclideanDistanceSquaredTo(bfnn)
+        qv.euclideanDistanceSquaredTo(nn._1),
+        qv.euclideanDistanceSquaredTo(bfnn._1)
       )
 
       qvi += 1
@@ -95,16 +95,16 @@ class PROctreeTest extends munit.FunSuite {
 
   }
 
-  test(" PROctree.radialQuery ") {
+  test(" PRQuadTreeMap.radialQuery ") {
 
     // compare with brute force method.
 
-    def bruteForceRadialQuery(qv: Vec[3], radiusSquared: Double): mutable.HashSet[Vec[3]] = {
-      val out: mutable.HashSet[Vec[3]] = mutable.HashSet[Vec[3]]()
+    def bruteForceRadialQuery(qv: Vec[2], radiusSquared: Double): mutable.HashSet[(Vec[2], String)] = {
+      val out: mutable.HashSet[(Vec[2], String)] = mutable.HashSet[(Vec[2], String)]()
       var i = 0
       while (i < all.size) {
         val tv = all(i)
-        if (qv.euclideanDistanceSquaredTo(tv) < radiusSquared) out.addOne(tv)
+        if (qv.euclideanDistanceSquaredTo(tv._1) < radiusSquared) out.addOne(tv)
         i = i + 1
       }
       out
@@ -112,9 +112,9 @@ class PROctreeTest extends munit.FunSuite {
 
     var qvi = 0
     while (qvi < 10) {
-      val qv = r.nextVec[3](-50, 50.0)
-      val radius = Math.random() * ot.bounds.MAX.magnitude
-      val results = ot.radialQuery(qv, radius)
+      val qv = r.nextVec[2](-50, 50.0)
+      val radius = Math.random() * otm.bounds.MAX.magnitude
+      val results = otm.radialQuery(qv, radius)
       val bruteForceResults = bruteForceRadialQuery(qv, slash.squareInPlace(radius))
 
       //println(s"radiusSquared = $radius found ${results.length} == ${bruteForceResults.size}")
@@ -130,18 +130,18 @@ class PROctreeTest extends munit.FunSuite {
 
   }
 
-  test(" PROctree.knn ") {
+  test(" PRQuadTreeMap.knn ") {
 
-    def bruteForceKNN(qv: Vec[3], k:Int): mutable.HashSet[Vec[3]] = {
-      val tm: mutable.TreeMap[Double, Vec[3]] = new mutable.TreeMap[Double, Vec[3]]()
+    def bruteForceKNN(qv: Vec[2], k:Int): mutable.HashSet[(Vec[2], String)] = {
+      val tm: mutable.TreeMap[Double, (Vec[2], String)] = new mutable.TreeMap[Double, (Vec[2], String)]()
 
       var i = 0
       while (i < all.size) {
         val tv = all(i)
-        tm.put(qv.euclideanDistanceSquaredTo(tv), tv)
+        tm.put(qv.euclideanDistanceSquaredTo(tv._1), tv)
         i = i + 1
       }
-      val out = new mutable.HashSet[Vec[3]]()
+      val out = new mutable.HashSet[(Vec[2], String)]()
       out.addAll(tm.take(k).values)
       out
     }
@@ -149,15 +149,15 @@ class PROctreeTest extends munit.FunSuite {
     var qvi = 0
     while (qvi < 1000) {
       val K:Int = r.between(2, 11)
-      val qv = r.nextVec[3](-50, 50.0)
-      val results = ot.knn(qv, K)
+      val qv = r.nextVec[2](-50, 50.0)
+      val results = otm.knn(qv, K)
       val bruteForceResults = bruteForceKNN(qv, K)
 
       if (results.length != bruteForceResults.size) {
         println(s"qv = ${qv.show} and K = $K found ${results.length} == ${bruteForceResults.size}")
-        for (rv <- results) print(s"${rv.show}")
+        for (rv <- results) print(s"${rv._1.show}")
         println()
-        for (bfrv <- bruteForceResults) print(s"${bfrv.show}")
+        for (bfrv <- bruteForceResults) print(s"${bfrv._1.show}")
         println()
       }
 
@@ -165,13 +165,13 @@ class PROctreeTest extends munit.FunSuite {
 
       var bftd = 0.0
       for (bfrv <- bruteForceResults) {
-        bftd = bftd + bfrv.euclideanDistanceTo(qv)
+        bftd = bftd + bfrv._1.euclideanDistanceTo(qv)
         //print(s"${bfrv.show}")
       }
       //println(s"Brute Force Total Distance: $bftd")
       var td = 0.0
       for (rv <- results) {
-        td = td + rv.euclideanDistanceTo(qv)
+        td = td + rv._1.euclideanDistanceTo(qv)
         //print(s"${rv.show}")
         assert(bruteForceResults.contains(rv))
       }

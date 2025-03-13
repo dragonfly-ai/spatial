@@ -42,12 +42,12 @@ class PROctree(extent: Double, center:Vec[3] = Vec[3](0.0, 0.0, 0.0), maxNodeCap
 
   inline def encompasses(qv: Vec[3]):Boolean = root.encompasses(qv)
 
-  def nearestNeighbor(qv: Vec[3]): Vec[3] = root.nearestNeighbor(qv)  //KNN(root, qv, 4).head
+  def nearestNeighbor(qv: Vec[3]): Vec[3] = root.nearestNeighbor(qv)  //knn(root, qv, 4).head
 
   // K-Nearest Neighbor Search
-  def KNN(qv: Vec[3], k: Int): NArray[Vec[3]] = {
+  def knn(qv: Vec[3], k: Int): NArray[Vec[3]] = {
     if (this.size < k) throw IllegalArgumentException(
-      s"KNN can't find $k nearest neighbors in PROctreeMap of size: ${this.size}."
+      s"knn can't find $k nearest neighbors in PROctreeMap of size: ${this.size}."
     )
 
     case class Candidate(point: Vec[3], distanceSquared: Double)
