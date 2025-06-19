@@ -23,7 +23,7 @@ import slash.vector.*
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
-class PROctreeMap[T:ClassTag](extent: Double, center:Vec[3] = Vec[3](0.0, 0.0, 0.0), maxNodeCapacity:Int = 64) {
+class PROctreeMap[T:ClassTag](extent: Double, center:Vec[3] = Vec[3](0.0, 0.0, 0.0), maxNodeCapacity:Int = 64){
 
   private var root: PROctantMap[T] = new LeafPROctantMap(center, extent, maxNodeCapacity)
   val keys: NArrayBuilder[Vec[3]] = NArrayBuilder[Vec[3]]()
@@ -100,50 +100,11 @@ class PROctreeMap[T:ClassTag](extent: Double, center:Vec[3] = Vec[3](0.0, 0.0, 0
 
   def size: Int = root.size
 
-  def bounds:VecBounds[3] = root.bounds
+  def bounds:VectorBounds[3] = root.bounds
 
 }
 
-trait PROctantMap[T] {
-
-  val center: Vec[3]
-  val extent: Double
-
-  // infNorm: half side length, L∞ norm (max distance from center to face)
-  lazy val infNorm: Double = extent / 2.0
-  private lazy val nCorner = Vec[3](center.x - infNorm, center.y - infNorm, center.z - infNorm)
-  private lazy val pCorner = Vec[3](center.x + infNorm, center.y + infNorm, center.z + infNorm)
-  lazy val bounds: VecBounds[3] = VecBounds[3](nCorner, pCorner)
-  //private lazy val boundingRadius = nCorner.euclideanDistanceTo(pCorner) / 2.0
-
-  def size: Int
-
-  def intersects(v: Vec[3], radiusSquared: Double): Boolean = {
-    var distSquared = 0.0
-
-    if (v.x < nCorner.x) distSquared += squareInPlace(v.x - nCorner.x)
-    else if (v.x > pCorner.x) distSquared += squareInPlace(v.x - pCorner.x)
-
-    if (v.y < nCorner.y) distSquared += squareInPlace(v.y - nCorner.y)
-    else if (v.y > pCorner.y) distSquared += squareInPlace(v.y - pCorner.y)
-
-    if (v.z < nCorner.z) distSquared += squareInPlace(v.z - nCorner.z)
-    else if (v.z > pCorner.z) distSquared += squareInPlace(v.z - pCorner.z)
-
-    distSquared <= radiusSquared
-  }
-
-  inline def encompasses(v: Vec[3]): Boolean = bounds.contains(v)
-
-  def minDistanceSquaredTo(v: Vec[3]): Double = {
-    squareInPlace(Math.max(0.0, Math.max(nCorner.x - v.x, v.x - pCorner.x))) +
-      squareInPlace(Math.max(0.0, Math.max(nCorner.y - v.y, v.y - pCorner.y))) +
-      squareInPlace(Math.max(0.0, Math.max(nCorner.z - v.z, v.z - pCorner.z)))
-
-    //    squareInPlace(Math.max(0.0, Math.abs(v.x - center.x) - infNorm)) +
-    //    squareInPlace(Math.max(0.0, Math.abs(v.y - center.y) - infNorm)) +
-    //    squareInPlace(Math.max(0.0, Math.abs(v.z - center.z) - infNorm))
-  }
+trait PROctantMap[T] extends Octant {
 
   def nearestNeighbor(qv: Vec[3]): (Vec[3], Int)
 

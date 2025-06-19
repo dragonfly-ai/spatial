@@ -75,39 +75,10 @@ class PRQuadTree(extent: Double, center: Vec[2] = Vec[2](0.0, 0.0), maxNodeCapac
 
   def size: Int = root.size
 
-  def bounds: VecBounds[2] = root.bounds
+  def bounds: VectorBounds[2] = root.bounds
 }
 
-trait PRQuadrant {
-
-  val center: Vec[2]
-  val extent: Double
-
-  lazy val infNorm: Double = extent / 2.0
-  private lazy val nCorner = Vec[2](center.x - infNorm, center.y - infNorm)
-  private lazy val pCorner = Vec[2](center.x + infNorm, center.y + infNorm)
-  lazy val bounds: VecBounds[2] = VecBounds[2](nCorner, pCorner)
-
-  def size: Int
-
-  def intersects(v: Vec[2], radiusSquared: Double): Boolean = {
-    var distSquared = 0.0
-
-    if (v.x < nCorner.x) distSquared += squareInPlace(v.x - nCorner.x)
-    else if (v.x > pCorner.x) distSquared += squareInPlace(v.x - pCorner.x)
-
-    if (v.y < nCorner.y) distSquared += squareInPlace(v.y - nCorner.y)
-    else if (v.y > pCorner.y) distSquared += squareInPlace(v.y - pCorner.y)
-
-    distSquared <= radiusSquared
-  }
-
-  inline def encompasses(v: Vec[2]): Boolean = bounds.contains(v)
-
-  def minDistanceSquaredTo(v: Vec[2]): Double = {
-    squareInPlace(Math.max(0.0, Math.max(nCorner.x - v.x, v.x - pCorner.x))) +
-      squareInPlace(Math.max(0.0, Math.max(nCorner.y - v.y, v.y - pCorner.y)))
-  }
+trait PRQuadrant extends Quadrant {
 
   def nearestNeighbor(qv: Vec[2]): Vec[2]
 
