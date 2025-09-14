@@ -3,7 +3,7 @@ import laika.format.Markdown
 import laika.helium.Helium
 import laika.helium.config.{HeliumIcon, IconLink}
 
-val appVersion:String = "0.1"
+val appVersion:String = "0.2"
 val globalScalaVersion = "3.3.6"
 
 ThisBuild / organization := "ai.dragonfly"
