@@ -42,7 +42,35 @@ class PROctree(extent: Double, center:Vec[3] = Vec[3](0.0, 0.0, 0.0), maxNodeCap
 
   inline def encompasses(qv: Vec[3]):Boolean = root.encompasses(qv)
 
-  def nearestNeighbor(qv: Vec[3]): Vec[3] = root.nearestNeighbor(qv)  //knn(root, qv, 4).head
+  def nearestNeighbor(qv: Vec[3]): Vec[3] = {
+    if (this.size < 1) throw IllegalArgumentException(
+      s"knn can't find a nearest neighbor in PROctree of size: ${this.size}."
+    )
+
+    var nn: Vec[3] = null.asInstanceOf[Vec[3]]
+    var minDistSquared: Double = Double.MaxValue
+
+    def search(node: PROctant): Unit = node match {
+      case lo: LeafPROctant =>
+        var pi = 0
+        while (pi < lo.points.size) {
+          val p = lo.points(pi)
+          val dstSq = qv.euclideanDistanceSquaredTo(p) //(v - qv).magnitude
+          if (dstSq < minDistSquared) {
+            minDistSquared = dstSq
+            nn = p
+          }
+          pi = pi + 1
+        }
+      case mo: MetaPROctant =>
+        // Check distance to node boundary
+        val closestDistSqrd = mo.minDistanceSquaredTo(qv)
+        if (nn == null.asInstanceOf[Vec[3]] || closestDistSqrd < minDistSquared) mo.foreachNode(search)
+    }
+
+    search(root)
+    nn
+  }
 
   // K-Nearest Neighbor Search
   def knn(qv: Vec[3], k: Int): NArray[Vec[3]] = {
@@ -69,8 +97,8 @@ class PROctree(extent: Double, center:Vec[3] = Vec[3](0.0, 0.0, 0.0), maxNodeCap
         }
       case mo: MetaPROctant =>
         // Check distance to node boundary
-        val closestDist = mo.minDistanceSquaredTo(qv)
-        if (pq.size < k || closestDist < pq.head.distanceSquared) mo.foreachNode(search)
+        val closestDistSqrd = mo.minDistanceSquaredTo(qv)
+        if (pq.size < k || closestDistSqrd < pq.head.distanceSquared) mo.foreachNode(search)
     }
 
     search(root)
@@ -88,8 +116,6 @@ class PROctree(extent: Double, center:Vec[3] = Vec[3](0.0, 0.0, 0.0), maxNodeCap
 
 
 trait PROctant extends Octant {
-
-  def nearestNeighbor(qv: Vec[3]): Vec[3]
 
   def insert(v: Vec[3]): PROctant
 
@@ -159,47 +185,6 @@ class MetaPROctant(override val center:Vec[3], override val extent: Double, maxN
       s = s + 1
       this
     } else throw new IllegalArgumentException(s"$v is not inside node: $this")
-  }
-
-  override def nearestNeighbor(qv: Vec[3]): Vec[3] = {
-
-    if (this.size < 1) throw new NoSuchElementException("Can't find a nearest neighbor from an empty node.")
-
-    val x = if (qv.x - center.x < 0.0) 0 else 1
-    val y = if (qv.y - center.y < 0.0) 0 else 1
-    val z = if (qv.z - center.z < 0.0) 0 else 1
-
-    var node = nodes(x)(y)(z)
-
-    var nn = node.nearestNeighbor(qv)
-
-    var nnDistSquared:Double = qv.euclideanDistanceSquaredTo(nn)
-
-    var xi = 0
-    while (xi < 2) {
-      var yi = 0
-      while (yi < 2) {
-        var zi = 0
-        while (zi < 2) {
-          if (xi != x || yi != y || zi != z) {
-            node = nodes(xi)(yi)(zi)
-            if (node.size > 0 && node.minDistanceSquaredTo(qv) < nnDistSquared) {
-              val candidate = node.nearestNeighbor(qv)
-              val cd: Double = qv.euclideanDistanceSquaredTo(candidate)
-              if (cd < nnDistSquared) {
-                nnDistSquared = cd
-                nn = candidate
-              }
-            }
-          }
-          zi = zi + 1
-        }
-        yi = yi + 1
-      }
-      xi = xi + 1
-    }
-
-    nn
   }
 
   override def radialQuery(qv: Vec[3], radiusSquared: Double): NArray[Vec[3]] = {
@@ -273,27 +258,6 @@ class LeafPROctant(override val center:Vec[3], override val extent: Double, maxN
     }
 
     matches.result
-  }
-
-  override def nearestNeighbor(qv: Vec[3]): Vec[3] = {
-    if (points.size < 1) throw new NoSuchElementException("Can't find a nearest neighbor from an empty node.")
-    else {
-      var nn: Vec[3] = points(0)
-      var minDistSquared = qv.euclideanDistanceSquaredTo(nn)
-
-      var i: Int = 1
-      while (i < points.size) {
-        val candidate = points(i)
-        val dist = qv.euclideanDistanceSquaredTo(candidate)
-        if (dist < minDistSquared) {
-          minDistSquared = dist
-          nn = candidate
-        }
-        i += 1
-      }
-
-      nn
-    }
   }
 
   override def toString: String = s"LeafPROctant(center = ${center.show}, extent = $extent, maxNodeCapacity = $maxNodeCapacity, size = $size)"

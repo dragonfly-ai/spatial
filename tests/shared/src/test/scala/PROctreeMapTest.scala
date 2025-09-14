@@ -31,7 +31,8 @@ class PROctreeMapTest extends munit.FunSuite {
   test(" PROctreeMap Insertion ") {
     var i:Int = 0
     while (i < N) {
-      val v = r.nextVec[3](-50.0, 50.0)
+      var v = r.nextVec[3](-50.0, 50.0)
+      while (v.x < 0 && v.y < 0) v = r.nextVec[3](-50.0, 50.0) // exclude -x, -y octant.
       if (otm.insert(v, v.show)) {
         all.addOne((v, v.show))
       } else {

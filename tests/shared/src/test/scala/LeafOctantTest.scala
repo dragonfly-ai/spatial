@@ -97,22 +97,6 @@ class LeafOctantTest extends munit.FunSuite {
     out
   }
 
-  test(" LeafPROctantMap.nearestNeighbor ") {
-
-    // compare with brute force method.
-    var qvi = 0
-    while (qvi < 10) {
-      val qv = r.nextVec[3](-50, 50.0)
-      val nn = o.nearestNeighbor(qv)
-      assertEquals(
-        qv.euclideanDistanceSquaredTo(nn),
-        qv.euclideanDistanceSquaredTo(bruteForceNearestNeighbor(qv))
-      )
-      qvi += 1
-    }
-
-  }
-
   test(" LeafPROctant.minDistanceSquaredTo(qv) ") {
     val lo: PROctant = new LeafPROctant(Vec[3](0.0, 0.0, 0.0), 100.0)
 

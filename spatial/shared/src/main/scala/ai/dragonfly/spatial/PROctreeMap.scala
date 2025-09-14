@@ -43,9 +43,43 @@ class PROctreeMap[T:ClassTag](extent: Double, center:Vec[3] = Vec[3](0.0, 0.0, 0
 
   inline def encompasses(qv: Vec[3]):Boolean = root.encompasses(qv)
 
+//  def nearestNeighbor(qv: Vec[3]): (Vec[3], T) = {
+//    val (nnv, nnid) = root.nearestNeighbor(qv)
+//    (nnv, values(nnid))
+//  }
+
   def nearestNeighbor(qv: Vec[3]): (Vec[3], T) = {
-    val (nnv, nnid) = root.nearestNeighbor(qv)
-    (nnv, values(nnid))
+    if (this.size < 1) throw IllegalArgumentException(
+      s"knn can't find a nearest neighbor in PROctreeMap of size: ${this.size}."
+    )
+
+    var nn: Vec[3] = null.asInstanceOf[Vec[3]]
+    var nni: Int = -1
+    var minDistSquared: Double = Double.MaxValue
+
+    def search(node: PROctantMap[T]): Unit = node match {
+      case lo: LeafPROctantMap[T] =>
+        var pi = 0
+        while (pi < lo.points.size) {
+          val p = lo.points(pi)
+          val pid = lo.ids(pi)
+          val dstSq = qv.euclideanDistanceSquaredTo(p) //(v - qv).magnitude
+          //if (pq.size < k) pq.enqueue(Candidate((p, pid), dstSq))
+          if (dstSq < minDistSquared) {
+            nn = p
+            nni = pid
+            minDistSquared = dstSq
+          }
+          pi = pi + 1
+        }
+      case mo: MetaPROctantMap[T] =>
+        // Check distance to node boundary
+        val closestDistSqrd = mo.minDistanceSquaredTo(qv)
+        if (nn == null.asInstanceOf[Vec[3]] || closestDistSqrd < minDistSquared) mo.foreachNode(search)
+    }
+
+    search(root)
+    (nn, values(nni))
   }
 
   // K-Nearest Neighbor Search
@@ -105,8 +139,6 @@ class PROctreeMap[T:ClassTag](extent: Double, center:Vec[3] = Vec[3](0.0, 0.0, 0
 }
 
 trait PROctantMap[T] extends Octant {
-
-  def nearestNeighbor(qv: Vec[3]): (Vec[3], Int)
 
   def insert(v: Vec[3], id:Int): PROctantMap[T]
 
@@ -175,47 +207,6 @@ class MetaPROctantMap[T](override val center:Vec[3], override val extent: Double
       s = s + 1
       this
     } else throw new IllegalArgumentException(s"$v is not inside node: $this")
-  }
-
-  override def nearestNeighbor(qv: Vec[3]): (Vec[3], Int) = {
-
-    if (this.size < 1) throw new NoSuchElementException("Can't find a nearest neighbor from an empty node.")
-
-    val x = if (qv.x - center.x < 0.0) 0 else 1
-    val y = if (qv.y - center.y < 0.0) 0 else 1
-    val z = if (qv.z - center.z < 0.0) 0 else 1
-
-    var node = nodes(x)(y)(z)
-
-    var nn = node.nearestNeighbor(qv)
-
-    var nnDistSquared:Double = qv.euclideanDistanceSquaredTo(nn._1)
-
-    var xi = 0
-    while (xi < 2) {
-      var yi = 0
-      while (yi < 2) {
-        var zi = 0
-        while (zi < 2) {
-          if (xi != x || yi != y || zi != z) {
-            node = nodes(xi)(yi)(zi)
-            if (node.size > 0 && node.minDistanceSquaredTo(qv) < nnDistSquared) {
-              val candidate = node.nearestNeighbor(qv)
-              val cd: Double = qv.euclideanDistanceSquaredTo(candidate._1)
-              if (cd < nnDistSquared) {
-                nnDistSquared = cd
-                nn = candidate
-              }
-            }
-          }
-          zi = zi + 1
-        }
-        yi = yi + 1
-      }
-      xi = xi + 1
-    }
-
-    nn
   }
 
   override def radialQuery(qv: Vec[3], radiusSquared: Double): NArray[(Vec[3], Int)] = {
@@ -290,27 +281,6 @@ class LeafPROctantMap[T](override val center:Vec[3], override val extent: Double
     }
 
     matches.result
-  }
-
-  override def nearestNeighbor(qv: Vec[3]): (Vec[3], Int) = {
-    if (points.size < 1) throw new NoSuchElementException("Can't find a nearest neighbor from an empty node.")
-    else {
-      var nn: (Vec[3], Int) = (points(0), ids(0))
-      var minDistSquared = qv.euclideanDistanceSquaredTo(nn._1)
-
-      var i: Int = 1
-      while (i < points.size) {
-        val candidate = points(i)
-        val dist = qv.euclideanDistanceSquaredTo(candidate)
-        if (dist < minDistSquared) {
-          minDistSquared = dist
-          nn = (candidate, ids(i))
-        }
-        i += 1
-      }
-
-      nn
-    }
   }
 
   override def toString: String = s"LeafPROctantMap(center = ${center.show}, extent = $extent, maxNodeCapacity = $maxNodeCapacity, size = $size)"

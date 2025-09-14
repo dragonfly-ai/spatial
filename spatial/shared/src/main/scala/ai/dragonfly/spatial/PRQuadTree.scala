@@ -36,7 +36,35 @@ class PRQuadTree(extent: Double, center: Vec[2] = Vec[2](0.0, 0.0), maxNodeCapac
 
   inline def encompasses(qv: Vec[2]): Boolean = root.encompasses(qv)
 
-  def nearestNeighbor(qv: Vec[2]): Vec[2] = root.nearestNeighbor(qv)
+  def nearestNeighbor(qv: Vec[2]): Vec[2] = {
+    if (this.size < 1) throw IllegalArgumentException(
+      s"knn can't find a nearest neighbor in PROctree of size: ${this.size}."
+    )
+
+    var nn: Vec[2] = null.asInstanceOf[Vec[2]]
+    var minDistSquared: Double = Double.MaxValue
+
+    def search(node: PRQuadrant): Unit = node match {
+      case lo: LeafPRQuadrant =>
+        var pi = 0
+        while (pi < lo.points.size) {
+          val p = lo.points(pi)
+          val dstSq = qv.euclideanDistanceSquaredTo(p) //(v - qv).magnitude
+          if (dstSq < minDistSquared) {
+            minDistSquared = dstSq
+            nn = p
+          }
+          pi = pi + 1
+        }
+      case mo: MetaPRQuadrant =>
+        // Check distance to node boundary
+        val closestDistSqrd = mo.minDistanceSquaredTo(qv)
+        if (nn == null.asInstanceOf[Vec[2]] || closestDistSqrd < minDistSquared) mo.foreachNode(search)
+    }
+
+    search(root)
+    nn
+  }
 
   // K-Nearest Neighbor Search
   def knn(qv: Vec[2], k: Int): NArray[Vec[2]] = {
@@ -79,8 +107,6 @@ class PRQuadTree(extent: Double, center: Vec[2] = Vec[2](0.0, 0.0), maxNodeCapac
 }
 
 trait PRQuadrant extends Quadrant {
-
-  def nearestNeighbor(qv: Vec[2]): Vec[2]
 
   def insert(v: Vec[2]): PRQuadrant
 
@@ -133,38 +159,6 @@ class MetaPRQuadrant(override val center: Vec[2], override val extent: Double, m
     } else throw new IllegalArgumentException(s"$v is not inside node: $this")
   }
 
-  override def nearestNeighbor(qv: Vec[2]): Vec[2] = {
-    if (this.size < 1) throw new NoSuchElementException("Can't find a nearest neighbor from an empty node.")
-
-    val x = if (qv.x - center.x < 0.0) 0 else 1
-    val y = if (qv.y - center.y < 0.0) 0 else 1
-
-    var node = nodes(x)(y)
-    var nn = node.nearestNeighbor(qv)
-    var nnDistSquared: Double = qv.euclideanDistanceSquaredTo(nn)
-
-    var xi = 0
-    while (xi < 2) {
-      var yi = 0
-      while (yi < 2) {
-        if (xi != x || yi != y) {
-          node = nodes(xi)(yi)
-          if (node.size > 0 && node.minDistanceSquaredTo(qv) < nnDistSquared) {
-            val candidate = node.nearestNeighbor(qv)
-            val cd: Double = qv.euclideanDistanceSquaredTo(candidate)
-            if (cd < nnDistSquared) {
-              nnDistSquared = cd
-              nn = candidate
-            }
-          }
-        }
-        yi = yi + 1
-      }
-      xi = xi + 1
-    }
-
-    nn
-  }
 
   override def radialQuery(qv: Vec[2], radiusSquared: Double): NArray[Vec[2]] = {
     val matches: NArrayBuilder[Vec[2]] = NArrayBuilder[Vec[2]]()
@@ -227,27 +221,6 @@ class LeafPRQuadrant(override val center: Vec[2], override val extent: Double, m
     }
 
     matches.result
-  }
-
-  override def nearestNeighbor(qv: Vec[2]): Vec[2] = {
-    if (points.size < 1) throw new NoSuchElementException("Can't find a nearest neighbor from an empty node.")
-    else {
-      var nn: Vec[2] = points(0)
-      var minDistSquared = qv.euclideanDistanceSquaredTo(nn)
-
-      var i: Int = 1
-      while (i < points.size) {
-        val candidate = points(i)
-        val dist = qv.euclideanDistanceSquaredTo(candidate)
-        if (dist < minDistSquared) {
-          minDistSquared = dist
-          nn = candidate
-        }
-        i += 1
-      }
-
-      nn
-    }
   }
 
   override def toString: String = s"LeafPRQuadrant(center = ${center.show}, extent = $extent, maxNodeCapacity = $maxNodeCapacity, size = $size)"
