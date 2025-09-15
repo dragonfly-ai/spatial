@@ -70,5 +70,5 @@ lazy val tests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .dependsOn(spatial)
   .settings(
     name := "spatial-tests",
-    libraryDependencies += "org.scalameta" %%% "munit" % "1.1.2" % Test
+    libraryDependencies += "org.scalameta" %%% "munit" % "1.2.0" % Test
   )
