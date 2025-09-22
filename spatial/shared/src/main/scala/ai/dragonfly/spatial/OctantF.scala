@@ -16,27 +16,28 @@
 
 package ai.dragonfly.spatial
 
-import slash.squareInPlace
-import slash.vector.{Vec, VectorBounds}
+import slash.*
+import slash.vectorf.*
+import slash.vectorf.vectorf.*
 
-trait Octant {
+trait OctantF {
 
-  val center: Vec[3]
-  val extent: Double
+  val center: VecF[3]
+  val extent: Float
 
   // infNorm: half side length, L∞ norm (max distance from center to face)
-  lazy val infNorm: Double = extent / 2.0
-  private lazy val nCorner = Vec[3](center.x - infNorm, center.y - infNorm, center.z - infNorm)
-  private lazy val pCorner = Vec[3](center.x + infNorm, center.y + infNorm, center.z + infNorm)
-  lazy val bounds: VectorBounds[3] = VectorBounds[3](nCorner, pCorner)
+  lazy val infNorm: Float = extent / 2f
+  private lazy val nCorner = VecF[3](center.x - infNorm, center.y - infNorm, center.z - infNorm)
+  private lazy val pCorner = VecF[3](center.x + infNorm, center.y + infNorm, center.z + infNorm)
+  lazy val bounds: VectorFBounds[3] = VectorFBounds[3](nCorner, pCorner)
   //private lazy val boundingRadius = nCorner.euclideanDistanceTo(pCorner) / 2.0
 
   def size: Int
 
-  def intersects(v: Vec[3], radiusSquared: Double): Boolean = bounds.intersectsSphere(v, radiusSquared)
+  def intersects(v: VecF[3], radiusSquared: Float): Boolean = bounds.intersectsSphere(v, radiusSquared)
 
-  inline def encompasses(v: Vec[3]): Boolean = bounds.contains(v)
+  inline def encompasses(v: VecF[3]): Boolean = bounds.contains(v)
 
-  inline def minDistanceSquaredTo(v: Vec[3]): Double = bounds.minEuclidianDistanceSquaredTo(v)
+  inline def minDistanceSquaredTo(v: VecF[3]): Double = bounds.minEuclidianDistanceSquaredTo(v)
 
 }
