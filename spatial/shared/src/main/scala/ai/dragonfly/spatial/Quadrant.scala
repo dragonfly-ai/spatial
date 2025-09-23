@@ -31,18 +31,7 @@ trait Quadrant {
 
   def size: Int
 
-  // TODO: replace this method body with an implementation in the next version of slash
-  def intersects(v: Vec[2], radiusSquared: Double): Boolean = {
-    var distSquared = 0.0
-
-    if (v.x < nCorner.x) distSquared += squareInPlace(v.x - nCorner.x)
-    else if (v.x > pCorner.x) distSquared += squareInPlace(v.x - pCorner.x)
-
-    if (v.y < nCorner.y) distSquared += squareInPlace(v.y - nCorner.y)
-    else if (v.y > pCorner.y) distSquared += squareInPlace(v.y - pCorner.y)
-
-    distSquared <= radiusSquared
-  }
+  def intersects(v: Vec[2], radiusSquared: Double): Boolean = bounds.intersectsSphere(v, radiusSquared)
 
   inline def encompasses(v: Vec[2]): Boolean = bounds.contains(v)
 
