@@ -16,7 +16,6 @@
 
 package ai.dragonfly.spatial
 
-import slash.squareInPlace
 import slash.vector.{Vec, VectorBounds}
 
 trait Quadrant {
