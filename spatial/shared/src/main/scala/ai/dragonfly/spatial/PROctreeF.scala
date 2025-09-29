@@ -19,7 +19,6 @@ package ai.dragonfly.spatial
 import narr.*
 import slash.squareInPlace
 import slash.vectorf.*
-import vectorf.*
 
 import scala.collection.mutable
 import scala.reflect.ClassTag

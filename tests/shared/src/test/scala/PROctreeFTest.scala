@@ -18,7 +18,6 @@ import ai.dragonfly.spatial.*
 import narr.*
 import slash.Random.{defaultRandom as r, *}
 import slash.vectorf.*
-import slash.vectorf.vectorf.*
 
 import scala.collection.mutable
 

@@ -3,7 +3,7 @@ import laika.format.Markdown
 import laika.helium.Helium
 import laika.helium.config.{HeliumIcon, IconLink}
 
-val appVersion:String = "0.2"
+val appVersion:String = "0.3"
 val globalScalaVersion = "3.3.6"
 
 ThisBuild / organization := "ai.dragonfly"
@@ -26,7 +26,7 @@ lazy val spatial = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .crossType(CrossType.Full)
   .settings(
     description := "Spatial data structures for Scala JVM, Scala.js, and Scala Native!",
-    libraryDependencies ++= Seq( "ai.dragonfly" %%% "slash" % "0.4.0" )
+    libraryDependencies ++= Seq( "ai.dragonfly" %%% "slash" % "0.4.1" )
   )
   .jvmSettings()
   .jsSettings()

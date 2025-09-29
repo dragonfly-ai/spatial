@@ -17,7 +17,6 @@
 package ai.dragonfly.spatial
 
 import slash.vectorf.*
-import vectorf.*
 
 trait QuadrantF {
 

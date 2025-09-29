@@ -18,7 +18,6 @@ package ai.dragonfly.spatial
 
 import slash.*
 import slash.vectorf.*
-import slash.vectorf.vectorf.*
 
 trait OctantF {
 
