@@ -26,7 +26,7 @@ lazy val spatial = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .crossType(CrossType.Full)
   .settings(
     description := "Spatial data structures for Scala JVM, Scala.js, and Scala Native!",
-    libraryDependencies ++= Seq( "ai.dragonfly" %%% "slash" % "0.4.2" )
+    libraryDependencies ++= Seq( "ai.dragonfly" %%% "slash" % "0.4.3" )
   )
   .jvmSettings()
   .jsSettings()
